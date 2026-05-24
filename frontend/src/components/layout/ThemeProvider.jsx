@@ -3,7 +3,12 @@ import { createContext, useContext, useState, useEffect } from 'react';
 const THEMES = [
     { id: 'dark',      name: 'Dark',      colors: ['#0f1117', '#4f8ef7'] },
     { id: 'light',     name: 'Light',     colors: ['#f0f2f5', '#3b82f6'] },
+    { id: 'mono',      name: 'Mono',      colors: ['#f5f5f5', '#e10600'] },
+    { id: 'marathon',  name: 'Marathon',  colors: ['#060503', '#ff9c00'] },
     { id: 'cyberpunk', name: 'Cyberpunk', colors: ['#0a0015', '#ff00ff'] },
+    { id: 'eva',       name: 'Eva',       colors: ['#0f0820', '#8b3fd9'] },
+    { id: 'stark',     name: 'Stark',     colors: ['#0a0807', '#c4271c'] },
+    { id: 'hazard',    name: 'Hazard',    colors: ['#1a1a1a', '#fdb931'] },
     { id: 'ocean',     name: 'Ocean',     colors: ['#091a2a', '#00b4d8'] },
     { id: 'sunset',    name: 'Sunset',    colors: ['#1a0f0a', '#f97316'] },
 ];
