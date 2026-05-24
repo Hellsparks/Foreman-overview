@@ -319,6 +319,19 @@ export async function importSpoolman(jsonData) {
     return body;
 }
 
+/** Import Spoolman data from a .zip or .db backup file (SQLite database). */
+export async function importSpoolmanFromDb(file) {
+    const form = new FormData();
+    form.append('database', file);
+    const r = await fetch(`${API}/import/from-db`, {
+        method: 'POST',
+        body: form,
+    });
+    const body = await r.json();
+    if (!r.ok) throw new Error(body.error || `HTTP ${r.status}`);
+    return body;
+}
+
 // ── Spool Storage management ─────────────────────────────────────────────────
 
 /** Get the configured storage location name (default: "Storage"). */

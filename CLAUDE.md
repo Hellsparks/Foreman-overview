@@ -46,7 +46,7 @@ cd frontend && npm run test:visual:update   # regenerate screenshots
 ## Key Conventions
 
 ### Database / Migrations
-- SQLite via **`node:sqlite`** (built-in Node 22, `DatabaseSync` — synchronous API). **Not** `better-sqlite3`.
+- SQLite via **`node:sqlite`** (built-in Node 24+, `DatabaseSync` — synchronous API). **Not** `better-sqlite3`.
 - Migrations live in `backend/src/db/migrations/NNN_name.sql`. Next number: check highest existing NNN + 1.
 - Settings are stored as TEXT key-value pairs in the `settings` table. Use `PUT /api/settings` to batch-save from the frontend.
 - **Always add a migration** when adding a new settings key — use `INSERT OR IGNORE`.

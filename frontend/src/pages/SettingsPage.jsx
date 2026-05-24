@@ -4,7 +4,7 @@ import { usePrinters } from '../hooks/usePrinters';
 import PrinterList from '../components/printers/PrinterList';
 import PresetList from '../components/printers/PresetList';
 import { getSettings, updateSetting } from '../api/settings';
-import { testConnection, testTeamsterConnection, detectTeamster, fetchTeamsterWeight, tareTeamster, calibrateTeamster, getFields, createField, exportSpoolman, importSpoolman, validateImport, getStorageLocation, setStorageLocation, getFilaments, getServicesStatus } from '../api/spoolman';
+import { testConnection, testTeamsterConnection, detectTeamster, fetchTeamsterWeight, tareTeamster, calibrateTeamster, getFields, createField, exportSpoolman, importSpoolman, importSpoolmanFromDb, validateImport, getStorageLocation, setStorageLocation, getFilaments, getServicesStatus } from '../api/spoolman';
 import { exportDatabase, importDatabase } from '../api/database';
 import { getBackupStatus, runBackup, deleteBackup } from '../api/backup';
 import { checkForUpdate, getUpdateChannel, setUpdateChannel, getReleases, getDevCommits, applyUpdate, pullAndRestart, getApplyStatus } from '../api/updates';
@@ -640,6 +640,14 @@ export default function SettingsPage() {
     setImportLog([]);
     setImportError('');
     try {
+      // Detect file type: .zip/.db go through the DB import endpoint
+      const ext = (importFile.name || '').split('.').pop().toLowerCase();
+      if (ext === 'zip' || ext === 'db') {
+        const result = await importSpoolmanFromDb(importFile);
+        setImportLog(result.log || []);
+        return;
+      }
+      // JSON import — existing flow
       const text = await importFile.text();
       const data = JSON.parse(text);
       // Validate fields first
@@ -1062,9 +1070,9 @@ export default function SettingsPage() {
             {/* Import */}
             <div>
               <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '8px' }}>Import</label>
-              <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px' }}>Adds new entries — existing data is not overwritten.</p>
+              <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px' }}>Adds new entries — existing data is not overwritten. Accepts <code>.json</code> exports or <code>.zip</code>/<code>.db</code> Spoolman database backups.</p>
               <div className="settings-row">
-                <input type="file" accept=".json" onChange={e => setImportFile(e.target.files?.[0] || null)} style={{ fontSize: '13px' }} />
+                <input type="file" accept=".json,.zip,.db" onChange={e => setImportFile(e.target.files?.[0] || null)} style={{ fontSize: '13px' }} />
                 <button className="btn btn-sm btn-primary" onClick={handleImport} disabled={importBusy || !importFile || !spoolmanSaved}>
                   {importBusy ? 'Importing…' : 'Import'}
                 </button>
@@ -1816,3 +1824,4 @@ export default function SettingsPage() {
     </div>
   );
 }
+

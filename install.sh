@@ -64,10 +64,10 @@ NEED_NODE=false
 if command -v node &>/dev/null; then
     NODE_VER=$(node --version | sed 's/^v//')
     NODE_MAJOR=$(echo "$NODE_VER" | cut -d. -f1)
-    if [ "$NODE_MAJOR" -ge 22 ]; then
+    if [ "$NODE_MAJOR" -ge 24 ]; then
         ok "Node.js v$NODE_VER"
     else
-        warn "Node.js v$NODE_VER found but v22+ required"
+        warn "Node.js v$NODE_VER found but v24+ required"
         NEED_NODE=true
     fi
 else
@@ -76,17 +76,17 @@ else
 fi
 
 if [ "$NEED_NODE" = true ]; then
-    step "Installing Node.js 22..."
+    step "Installing Node.js 24..."
     if [ "$PKG" = "brew" ]; then
-        brew install node@22
+        brew install node@24
         ok "Node.js installed via Homebrew"
     elif [ "$PKG" = "apt" ] || [ "$PKG" = "dnf" ]; then
         # NodeSource setup
         if [ "$PKG" = "apt" ]; then
-            curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+            curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash -
             sudo apt-get install -y nodejs
         else
-            curl -fsSL https://rpm.nodesource.com/setup_22.x | sudo bash -
+            curl -fsSL https://rpm.nodesource.com/setup_24.x | sudo bash -
             sudo dnf install -y nodejs
         fi
         ok "Node.js $(node --version) installed via NodeSource"
@@ -94,7 +94,7 @@ if [ "$NEED_NODE" = true ]; then
         sudo pacman -S --noconfirm nodejs npm
         ok "Node.js installed via pacman"
     else
-        fail "Cannot auto-install Node.js. Install v22+ from https://nodejs.org"
+        fail "Cannot auto-install Node.js. Install v24+ from https://nodejs.org"
         exit 1
     fi
 fi

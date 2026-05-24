@@ -110,6 +110,16 @@ export default function ProjectDetailView({ projectId, onBack, filaments = [] })
     const [templateMap, setTemplateMap] = useState({}); // { templateId: templateData }
     const [swapConfirm, setSwapConfirm] = useState(null); // { category_id, new_option_id, done_plates, instance_id }
 
+    const [collapsedInstances, setCollapsedInstances] = useState(new Set());
+    const toggleCollapse = (instanceId) => {
+        setCollapsedInstances(prev => {
+            const next = new Set(prev);
+            if (next.has(instanceId)) next.delete(instanceId);
+            else next.add(instanceId);
+            return next;
+        });
+    };
+
     const fetchData = async () => {
         try {
             const [projRes, printRes, spoolsRes, settingsRes] = await Promise.all([
@@ -538,31 +548,92 @@ export default function ProjectDetailView({ projectId, onBack, filaments = [] })
                 </div>
             )}
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 320px', gap: '24px', alignItems: 'start' }}>
-                {/* Left: Plate Checklist */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', alignItems: 'stretch' }}>
+                {/* Plate Checklist and Inline Filament Setup */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                     <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '16px', overflow: 'visible' }}>
-                        <div style={{ padding: '16px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--surface2)' }}>
+                        <div style={{ padding: '16px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--surface2)', borderRadius: '16px 16px 0 0' }}>
                             <h3 style={{ margin: 0, fontSize: '16px' }}>Print Plates</h3>
                             <div style={{ fontSize: '14px', fontWeight: 600 }}>{progress}% Complete</div>
                         </div>
                         <div style={{ padding: '0 8px' }}>
-                            {groupPlates().map((section, si) => (
-                                <React.Fragment key={section.instanceId ?? `section-${si}`}>
-                                    {/* Instance header (only for multi-instance projects) */}
-                                    {section.instanceLabel && groupPlates().length > 1 && (
-                                        <div style={{
-                                            padding: '12px 12px 4px',
-                                            marginTop: si > 0 ? '8px' : 0,
-                                            borderTop: si > 0 ? '3px solid var(--primary)' : 'none'
-                                        }}>
-                                            <span style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text)' }}>
-                                                {section.instanceLabel}
-                                            </span>
+                            {(() => {
+                                const renderFilamentSetup = (assignments) => {
+                                    if (!assignments || assignments.length === 0) return null;
+                                    return (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                            {assignments.map(ca => {
+                                                const color = ca.color_hex ? (ca.color_hex.startsWith('#') ? ca.color_hex : `#${ca.color_hex}`) : '#888888';
+                                                return (
+                                                    <div key={ca.id} className="spoolman-spool-card" style={{ padding: '10px', cursor: 'default', borderWidth: '1px', background: 'var(--surface)' }}>
+                                                        <div className="spool-card-header" style={{ marginBottom: '4px' }}>
+                                                            <div className="spool-color-circle" style={{ '--spool-color': color, width: '18px', height: '18px', borderRadius: '50%' }} />
+                                                            <div className="spool-card-info" style={{ flex: 1 }}>
+                                                                <span className="spool-card-name" style={{ fontSize: '12px' }}>{ca.slot_key}</span>
+                                                                <span className="spool-card-material" style={{ fontSize: '10px' }}>
+                                                                    {ca.material || '—'}
+                                                                    {ca.spool_id && <span style={{ marginLeft: '4px', opacity: 0.8 }}>#{ca.spool_id}</span>}
+                                                                </span>
+                                                            </div>
+                                                            <button className="btn btn-sm btn-outline" style={{ padding: '2px 6px', fontSize: '10px' }} onClick={() => setShowSpoolPicker({ slotKey: ca.slot_key, currentSpoolId: ca.spool_id })}>Change</button>
+                                                        </div>
+                                                        <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                                                            {ca.vendor && <span>{ca.vendor} • </span>}
+                                                            {ca.spool_name || 'No spool assigned'}
+                                                            {ca.material && <span> ({ca.material})</span>}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
-                                    )}
-                                    {section.groups.map((group, gi) => (
-                                        <React.Fragment key={group.categoryId ?? `uncategorized-${gi}`}>
+                                    );
+                                };
+
+                                return groupPlates().map((section, si) => {
+                                    const isCollapsed = collapsedInstances.has(section.instanceId);
+                                    const sectionPlates = section.groups.flatMap(g => g.plates);
+                                    const sectionTotal = sectionPlates.length;
+                                    const sectionDone = sectionPlates.filter(p => p.status === 'done').length;
+                                    const isAllDone = sectionTotal > 0 && sectionDone === sectionTotal;
+                                    const instanceAssignments = project.color_assignments?.filter(ca => ca.instance_id === section.instanceId);
+
+                                    return (
+                                        <React.Fragment key={section.instanceId ?? `section-${si}`}>
+                                            {/* Instance header (only for multi-instance projects) */}
+                                            {section.instanceLabel && groupPlates().length > 1 && (
+                                                <div 
+                                                    onClick={() => toggleCollapse(section.instanceId)}
+                                                    style={{
+                                                        padding: '12px 16px',
+                                                        marginTop: si > 0 ? '8px' : 0,
+                                                        borderTop: si > 0 ? '3px solid var(--primary)' : 'none',
+                                                        background: isAllDone ? 'rgba(16, 185, 129, 0.1)' : 'var(--surface2)',
+                                                        display: 'flex',
+                                                        justifyContent: 'space-between',
+                                                        alignItems: 'center',
+                                                        cursor: 'pointer',
+                                                        userSelect: 'none'
+                                                    }}
+                                                >
+                                                    <span style={{ fontSize: '14px', fontWeight: 800, color: isAllDone ? 'var(--success)' : 'var(--text)' }}>
+                                                        {section.instanceLabel}
+                                                    </span>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                        {isCollapsed && (
+                                                            <span style={{ fontSize: '12px', fontWeight: 600, color: isAllDone ? 'var(--success)' : 'var(--text-muted)' }}>
+                                                                {sectionDone} of {sectionTotal} plates printed
+                                                            </span>
+                                                        )}
+                                                        <span style={{ fontSize: '12px', opacity: 0.6, transform: isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>▼</span>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {!isCollapsed && (
+                                                <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+                                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                                    {section.groups.map((group, gi) => (
+                                                        <React.Fragment key={group.categoryId ?? `uncategorized-${gi}`}>
                                             {/* Category header */}
                                             {group.name && (
                                                 <div style={{
@@ -690,59 +761,21 @@ export default function ProjectDetailView({ projectId, onBack, filaments = [] })
                                             </div>
                                         </div>
                                     ))}
-                                        </React.Fragment>
-                                    ))}
-                                </React.Fragment>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-
-                {/* Right: Filament Setup (Project Status moved to Sidebar) */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                    <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '16px', padding: '16px' }}>
-                        <h3 style={{ margin: '0 0 16px 0', fontSize: '14px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>Filament Setup</h3>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                            {project.color_assignments?.map(ca => {
-                                const color = ca.color_hex ? (ca.color_hex.startsWith('#') ? ca.color_hex : `#${ca.color_hex}`) : '#888888';
-                                return (
-                                    <div
-                                        key={ca.id}
-                                        className="spoolman-spool-card"
-                                        style={{
-                                            padding: '12px',
-                                            cursor: 'default',
-                                            borderWidth: '1px'
-                                        }}
-                                    >
-                                        <div className="spool-card-header" style={{ marginBottom: '4px' }}>
-                                            <div className="spool-color-circle" style={{ '--spool-color': color, width: '24px', height: '24px', borderRadius: '50%' }} />
-                                            <div className="spool-card-info" style={{ flex: 1 }}>
-                                                <span className="spool-card-name" style={{ fontSize: '13px' }}>{ca.slot_key}</span>
-                                                <span className="spool-card-material" style={{ fontSize: '10px' }}>
-                                                    {ca.material || '—'}
-                                                    {ca.spool_id && (
-                                                        <span style={{ marginLeft: '4px', opacity: 0.8 }}>#{ca.spool_id}</span>
+                                                </React.Fragment>
+                                            ))}
+                                                    </div>
+                                                    {instanceAssignments?.length > 0 && (
+                                                        <div style={{ width: '220px', flexShrink: 0, borderLeft: '1px solid var(--border)', padding: '12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                                            <div style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '6px' }}>Filament Setup</div>
+                                                            {renderFilamentSetup(instanceAssignments)}
+                                                        </div>
                                                     )}
-                                                </span>
-                                            </div>
-                                            <button
-                                                className="btn btn-sm btn-outline"
-                                                style={{ padding: '2px 8px', fontSize: '11px' }}
-                                                onClick={() => setShowSpoolPicker({ slotKey: ca.slot_key, currentSpoolId: ca.spool_id })}
-                                            >
-                                                Change
-                                            </button>
-                                        </div>
-                                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                                            {ca.vendor && <span>{ca.vendor} • </span>}
-                                            {ca.spool_name || 'No spool assigned'}
-                                            {ca.material && <span> ({ca.material})</span>}
-                                        </div>
-                                    </div>
+                                                </div>
+                                    )}
+                                </React.Fragment>
                                 );
-                            })}
-                            {project.color_assignments?.length === 0 && <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>No assignments defined.</p>}
+                                })
+                            })()}
                         </div>
                     </div>
                 </div>
@@ -910,3 +943,5 @@ export default function ProjectDetailView({ projectId, onBack, filaments = [] })
         </div>
     );
 }
+
+ 

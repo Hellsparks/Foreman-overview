@@ -8,10 +8,6 @@ const { getDb, DB_PATH } = require('../db');
 const UPLOADS_DIR = process.env.UPLOADS_DIR || path.join(__dirname, '../../uploads');
 const DEFAULT_BACKUP_DIR = path.join(path.dirname(DB_PATH), 'backups');
 
-// Spoolman container details
-const SPOOLMAN_CONTAINER = 'marathon-spoolman';
-const SPOOLMAN_DB_IN_CONTAINER = '/home/app/.local/share/spoolman/spoolman.db';
-
 const TICK_MS = 60 * 1000;
 let _timer = null;
 
@@ -204,52 +200,40 @@ async function backupMarathon() {
 
 // ── Spoolman backup ───────────────────────────────────────────────────────────
 
-/**
- * Get the Spoolman SQLite DB as a local temp file.
- * Always tries `docker cp` first (works in both Docker and native dev mode
- * as long as the marathon-spoolman container is running).
- * Falls back to spoolman_data_dir setting for bare-metal Spoolman installs.
- */
-async function getSpoolmanDbPath() {
-    // Try docker cp regardless of deploy mode — Spoolman runs in Docker even in dev
-    const tmpDb = path.join(os.tmpdir(), `spoolman-src-${Date.now()}.db`);
-    try {
-        await new Promise((resolve, reject) => {
-            exec(
-                `docker cp ${SPOOLMAN_CONTAINER}:${SPOOLMAN_DB_IN_CONTAINER} "${tmpDb}"`,
-                { timeout: 30000 },
-                err => err ? reject(err) : resolve()
-            );
-        });
-        return { dbPath: tmpDb, cleanup: true };
-    } catch {
-        // Fall back to user-configured data directory (bare-metal Spoolman)
-        const dataDir = getSetting('spoolman_data_dir');
-        if (!dataDir) throw new Error(
-            'Could not reach marathon-spoolman container via docker cp. ' +
-            'For a non-Docker Spoolman install, set the data directory in Backup settings.'
-        );
-        const dbPath = path.join(dataDir, 'spoolman.db');
-        if (!fs.existsSync(dbPath)) throw new Error(`Spoolman DB not found at ${dbPath}`);
-        return { dbPath, cleanup: false };
-    }
-}
-
 async function backupSpoolman() {
-    const { dbPath, cleanup } = await getSpoolmanDbPath();
-    try {
-        const filename = `spoolman-${isoTimestamp()}.zip`;
-        await distributeArchive(archive => {
-            archive.file(dbPath, { name: 'spoolman.db' });
-        }, filename, 'spoolman');
+    const spoolmanUrl = getSetting('spoolman_url');
+    if (!spoolmanUrl) throw new Error('Spoolman URL not configured — set it in Settings.');
 
-        const keep = parseInt(getSetting('spoolman_backup_keep', '7'), 10) || 7;
-        for (const dir of getBackupDirs()) rotateDir(dir, 'spoolman-', keep, 'spoolman');
-        setSetting('spoolman_last_backup', new Date().toISOString());
-        console.log(`[Backup] Spoolman → ${filename}`);
+    const fetchJson = async (endpoint) => {
+        const r = await fetch(`${spoolmanUrl}${endpoint}`, { signal: AbortSignal.timeout(15000) });
+        if (!r.ok) throw new Error(`Spoolman returned ${r.status} for ${endpoint}`);
+        return r.json();
+    };
+
+    const [vendors, filaments, spools, settings] = await Promise.all([
+        fetchJson('/api/v1/vendor'),
+        fetchJson('/api/v1/filament'),
+        fetchJson('/api/v1/spool'),
+        fetchJson('/api/v1/setting').catch(() => ({})),
+    ]);
+
+    const payload = { vendors, filaments, spools, settings };
+    const tmpJson = path.join(os.tmpdir(), `spoolman-src-${Date.now()}.json`);
+    fs.writeFileSync(tmpJson, JSON.stringify(payload, null, 2), 'utf8');
+
+    const filename = `spoolman-${isoTimestamp()}.zip`;
+    try {
+        await distributeArchive(archive => {
+            archive.file(tmpJson, { name: 'spoolman.json' });
+        }, filename, 'spoolman');
     } finally {
-        if (cleanup) try { fs.unlinkSync(dbPath); } catch { /* ok */ }
+        try { fs.unlinkSync(tmpJson); } catch { /* ok */ }
     }
+
+    const keep = parseInt(getSetting('spoolman_backup_keep', '7'), 10) || 7;
+    for (const dir of getBackupDirs()) rotateDir(dir, 'spoolman-', keep, 'spoolman');
+    setSetting('spoolman_last_backup', new Date().toISOString());
+    console.log(`[Backup] Spoolman → ${filename}`);
 }
 
 // ── Scheduler ────────────────────────────────────────────────────────────────

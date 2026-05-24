@@ -66,10 +66,10 @@ Write-Step "Checking Node.js..."
 if (Test-Command 'node') {
     $nodeVer = (node --version) -replace '^v', ''
     $nodeMajor = [int]($nodeVer.Split('.')[0])
-    if ($nodeMajor -ge 22) {
+    if ($nodeMajor -ge 24) {
         Write-Ok "Node.js v$nodeVer found"
     } else {
-        Write-Warn "Node.js v$nodeVer found but v22+ required"
+        Write-Warn "Node.js v$nodeVer found but v24+ required"
         $installNode = $true
     }
 } else {
@@ -89,7 +89,7 @@ if ($installNode) {
             exit 1
         }
     } else {
-        Write-Fail "winget not available. Please install Node.js 22+ manually from https://nodejs.org"
+        Write-Fail "winget not available. Please install Node.js 24+ manually from https://nodejs.org"
         exit 1
     }
 }

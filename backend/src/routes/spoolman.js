@@ -3,6 +3,9 @@ const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
+const multer = require('multer');
+const AdmZip = require('adm-zip');
+const { DatabaseSync } = require('node:sqlite');
 const { getDb } = require('../db');
 const MoonrakerClient = require('../services/moonraker');
 const BambuClient = require('../services/bambu');
@@ -1355,6 +1358,249 @@ router.post('/import', async (req, res) => {
         res.json({ ok: true, log });
     } catch (err) {
         push(`Fatal: ${err.message}`);
+        res.status(500).json({ error: err.message, log });
+    }
+});
+
+// POST /api/spoolman/import/from-db — import from a Spoolman SQLite .db or .zip backup
+// Reads the vendor, filament, spool tables from the uploaded database and pushes
+// them to the running Spoolman instance via its REST API.
+const dbUpload = multer({ dest: os.tmpdir(), limits: { fileSize: 500 * 1024 * 1024 } });
+
+router.post('/import/from-db', dbUpload.single('database'), async (req, res) => {
+    const url = getSpoolmanUrl();
+    if (!url) return res.status(400).json({ error: 'Spoolman URL not configured' });
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+    const tmpPath = req.file.path;
+    const cleanup = (...extras) => {
+        for (const p of [tmpPath, ...extras]) {
+            try { if (p) fs.unlinkSync(p); } catch { /* ok */ }
+        }
+    };
+
+    const log = [];
+    const push = msg => { log.push(msg); console.log('[spoolman-import-db]', msg); };
+
+    let dbPath = null;   // the SQLite file we'll actually open
+    let tmpDb = null;    // extra temp file to clean up (extracted from zip)
+    let jsonData = null; // set when restoring from Marathon JSON backup format
+
+    try {
+        // Detect file type by magic bytes
+        const buf = Buffer.alloc(16);
+        const fd = fs.openSync(tmpPath, 'r');
+        fs.readSync(fd, buf, 0, 16, 0);
+        fs.closeSync(fd);
+
+        const isSqlite = buf.toString('ascii').startsWith('SQLite format 3');
+        const isZip = buf[0] === 0x50 && buf[1] === 0x4B;
+
+        if (isSqlite) {
+            dbPath = tmpPath;
+        } else if (isZip) {
+            const zip = new AdmZip(tmpPath);
+            const entries = zip.getEntries();
+            const dbEntry = entries.find(e => {
+                if (e.isDirectory) return false;
+                const name = e.entryName.toLowerCase();
+                return name === 'spoolman.db' || name.endsWith('.db') || name.endsWith('.sqlite') || name.endsWith('.sqlite3') || name.endsWith('.db3');
+            });
+            const jsonEntry = !dbEntry && entries.find(e => !e.isDirectory && e.entryName.toLowerCase() === 'spoolman.json');
+            if (jsonEntry) {
+                push(`Detected Marathon JSON backup (${jsonEntry.entryName})…`);
+                try { jsonData = JSON.parse(jsonEntry.getData().toString('utf8')); }
+                catch { cleanup(); return res.status(400).json({ error: 'spoolman.json inside ZIP is not valid JSON.' }); }
+            } else if (dbEntry) {
+                push('Extracting .db from ZIP…');
+                tmpDb = path.join(os.tmpdir(), `spoolman-import-${Date.now()}.db`);
+                fs.writeFileSync(tmpDb, dbEntry.getData());
+                const hdr = Buffer.alloc(16);
+                const fd2 = fs.openSync(tmpDb, 'r');
+                fs.readSync(fd2, hdr, 0, 16, 0);
+                fs.closeSync(fd2);
+                if (!hdr.toString('ascii').startsWith('SQLite format 3')) {
+                    cleanup(tmpDb);
+                    return res.status(400).json({ error: 'The .db file inside the ZIP is not valid SQLite.' });
+                }
+                dbPath = tmpDb;
+                push(`Found: ${dbEntry.entryName}`);
+            } else {
+                cleanup();
+                return res.status(400).json({ error: 'No SQLite database or spoolman.json found inside the ZIP.' });
+            }
+        } else {
+            cleanup();
+            return res.status(400).json({ error: 'Not a valid backup file. Expected a .zip or .db file.' });
+        }
+
+        // ── Read source data ────────────────────────────────────────────────
+        let vendors = [], filaments = [], spools = [], extraFieldDefs = [], dbCurrency = '';
+
+        if (jsonData) {
+            // Marathon JSON backup: data already in Spoolman API format.
+            // Normalize nested vendor/filament objects to _id fields so the import loop below works unchanged.
+            vendors = jsonData.vendors || [];
+            filaments = (jsonData.filaments || []).map(f => ({ ...f, vendor_id: f.vendor?.id ?? null }));
+            spools = (jsonData.spools || []).map(s => ({ ...s, filament_id: s.filament?.id ?? null }));
+            const cur = jsonData.settings?.currency;
+            dbCurrency = typeof cur === 'string' ? cur : (cur?.value ?? '');
+            push(`Read ${vendors.length} vendors, ${filaments.length} filaments, ${spools.length} spools from JSON`);
+        } else {
+            // SQLite backup: open and read tables.
+            const spoolDb = new DatabaseSync(dbPath, { open: true, readOnly: true });
+            const tables = spoolDb.prepare("SELECT name FROM sqlite_master WHERE type='table'").all().map(r => r.name);
+            push(`Tables found: ${tables.join(', ')}`);
+
+            const vendorTable = tables.includes('vendor') ? 'vendor' : (tables.includes('vendors') ? 'vendors' : null);
+            if (vendorTable) { vendors = spoolDb.prepare(`SELECT * FROM ${vendorTable}`).all(); push(`Read ${vendors.length} vendors from DB`); }
+
+            const filamentTable = tables.includes('filament') ? 'filament' : (tables.includes('filaments') ? 'filaments' : null);
+            if (filamentTable) { filaments = spoolDb.prepare(`SELECT * FROM ${filamentTable}`).all(); push(`Read ${filaments.length} filaments from DB`); }
+
+            const spoolTable = tables.includes('spool') ? 'spool' : (tables.includes('spools') ? 'spools' : null);
+            if (spoolTable) { spools = spoolDb.prepare(`SELECT * FROM ${spoolTable}`).all(); push(`Read ${spools.length} spools from DB`); }
+
+            if (tables.includes('extra_field')) {
+                try { extraFieldDefs = spoolDb.prepare('SELECT * FROM extra_field').all(); } catch { /* ok */ }
+            }
+            if (tables.includes('setting')) {
+                try {
+                    const row = spoolDb.prepare("SELECT value FROM setting WHERE key = 'currency'").get();
+                    if (row) dbCurrency = JSON.parse(row.value || '""');
+                } catch { /* ok */ }
+            }
+            spoolDb.close();
+        }
+
+        // ── Push to Spoolman API ────────────────────────────────────────────
+        const spoolmanPost = async (apiPath, body) => {
+            const r = await fetch(`${url}${apiPath}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+                signal: AbortSignal.timeout(10000),
+            });
+            if (!r.ok) {
+                const err = await r.json().catch(() => ({}));
+                throw new Error(err.detail || err.message || `HTTP ${r.status}`);
+            }
+            return r.json();
+        };
+
+        const spoolmanGet = async (apiPath) => {
+            const r = await fetch(`${url}${apiPath}`, { signal: AbortSignal.timeout(10000) });
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            return r.json();
+        };
+
+        // Pre-fetch existing vendors for dedup
+        const existingVendors = await spoolmanGet('/api/v1/vendor').catch(() => []);
+        const existingVendorByName = Object.fromEntries(
+            existingVendors.map(v => [v.name.toLowerCase(), v.id])
+        );
+
+        // Vendor ID mapping: old DB id → new Spoolman id
+        const vendorIdMap = {};
+        push(`Importing ${vendors.length} vendors…`);
+        for (const v of vendors) {
+            const body = {};
+            if (v.name) body.name = v.name;
+            if (v.comment) body.comment = v.comment;
+            if (v.empty_spool_weight != null) body.empty_spool_weight = v.empty_spool_weight;
+            // Parse extra fields stored as JSON in the 'extra' column
+            if (v.extra) {
+                try { body.extra = typeof v.extra === 'string' ? JSON.parse(v.extra) : v.extra; } catch { /* ok */ }
+            }
+            try {
+                const created = await spoolmanPost('/api/v1/vendor', body);
+                vendorIdMap[v.id] = created.id;
+            } catch {
+                const existingId = existingVendorByName[v.name?.toLowerCase()];
+                if (existingId) {
+                    vendorIdMap[v.id] = existingId;
+                    push(`  Vendor "${v.name}" already exists (id=${existingId})`);
+                } else {
+                    push(`  Vendor "${v.name}" skipped`);
+                }
+            }
+        }
+
+        // Filament ID mapping: old DB id → new Spoolman id
+        const filamentIdMap = {};
+        push(`Importing ${filaments.length} filaments…`);
+        for (const f of filaments) {
+            const body = {};
+            // Map standard columns
+            for (const col of ['name', 'material', 'density', 'diameter', 'weight',
+                'spool_weight', 'article_number', 'comment', 'color_hex',
+                'multi_color_hexes', 'multi_color_direction',
+                'extruder_temp', 'bed_temp', 'price', 'settings_extruder_temp',
+                'settings_bed_temp', 'spool_type']) {
+                if (f[col] != null && f[col] !== '') body[col] = f[col];
+            }
+            // Link to vendor
+            if (f.vendor_id != null && vendorIdMap[f.vendor_id]) {
+                body.vendor_id = vendorIdMap[f.vendor_id];
+            }
+            // Parse extra fields
+            if (f.extra) {
+                try { body.extra = typeof f.extra === 'string' ? JSON.parse(f.extra) : f.extra; } catch { /* ok */ }
+            }
+            // Parse multi_color_hexes from string
+            if (typeof body.multi_color_hexes === 'string') {
+                try { body.multi_color_hexes = JSON.parse(body.multi_color_hexes); } catch { /* ok */ }
+            }
+            try {
+                const created = await spoolmanPost('/api/v1/filament', body);
+                filamentIdMap[f.id] = created.id;
+            } catch (err) {
+                push(`  Filament "${f.name || f.id}" skipped: ${err.message}`);
+            }
+        }
+
+        // Spools
+        push(`Importing ${spools.length} spools…`);
+        let spoolsOk = 0;
+        for (const s of spools) {
+            const body = {};
+            for (const col of ['first_used', 'last_used', 'remaining_weight',
+                'used_weight', 'initial_weight', 'spool_weight', 'price',
+                'remaining_length', 'used_length', 'location', 'lot_nr',
+                'comment', 'archived']) {
+                if (s[col] != null && s[col] !== '') body[col] = s[col];
+            }
+            // Spoolman rejects requests with both; prefer remaining_weight
+            if (body.remaining_weight != null) delete body.used_weight;
+            // Link to filament
+            if (s.filament_id != null) {
+                const newId = filamentIdMap[s.filament_id];
+                if (!newId) { push(`  Spool id=${s.id} skipped: filament not mapped`); continue; }
+                body.filament_id = newId;
+            }
+            // Parse extra fields
+            if (s.extra) {
+                try { body.extra = typeof s.extra === 'string' ? JSON.parse(s.extra) : s.extra; } catch { /* ok */ }
+            }
+            // Parse archived to boolean
+            if (body.archived != null) {
+                body.archived = body.archived === 1 || body.archived === '1' || body.archived === true || body.archived === 'true';
+            }
+            try {
+                await spoolmanPost('/api/v1/spool', body);
+                spoolsOk++;
+            } catch (err) {
+                push(`  Spool id=${s.id} skipped: ${err.message}`);
+            }
+        }
+        push(`${spoolsOk} spools imported.`);
+        push('Import from database complete.');
+
+        cleanup(tmpDb);
+        res.json({ ok: true, log });
+    } catch (err) {
+        push(`Fatal: ${err.message}`);
+        cleanup(tmpDb);
         res.status(500).json({ error: err.message, log });
     }
 });

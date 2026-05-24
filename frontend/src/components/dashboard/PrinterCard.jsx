@@ -278,7 +278,7 @@ ${cardSel} .printer-card {
           {scrapeError && (
             <span title={`CSS scrape failed: ${scrapeError}`} style={{ fontSize: '14px', cursor: 'help', opacity: 0.7, marginLeft: '4px' }}>⚠️</span>
           )}
-          <StatusBadge state={state} />
+          <StatusBadge state={state} live={isPrinting} />
         </div>
 
         {online ? (
@@ -377,7 +377,11 @@ ${cardSel} .printer-card {
                   disabled={busy}
                   title="Toggle chamber light"
                 >
-                  {lightOn ? '💡 Light On' : '💡 Light Off'}
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M9 18h6"/><path d="M10 22h4"/>
+                    <path d="M16 14a4 4 0 1 0-8 0c0 2 2 3 2 4h4c0-1 2-2 2-4z"/>
+                  </svg>
+                  {lightOn ? 'Light On' : 'Light Off'}
                 </button>
               ) : (
                 <button
@@ -400,7 +404,7 @@ ${cardSel} .printer-card {
                 </button>
               )}
               {(isPrinting || isPaused) && (
-                <button className="btn btn-sm btn-danger v-btn" onClick={() => setConfirming(true)} disabled={busy}>
+                <button className="btn btn-sm btn-danger v-btn" onClick={() => setConfirming(true)} disabled={busy} style={{ marginLeft: 'auto' }}>
                   Cancel
                 </button>
               )}
@@ -445,10 +449,19 @@ ${cardSel} .printer-card {
               const amsUnit = status._bambu.ams.ams[0];
               const trays = amsUnit?.tray || [];
               const activeIdx = parseInt(status._bambu.ams.tray_now ?? '255', 10);
+              const activeTray = trays.find(t => parseInt(t.id, 10) === activeIdx);
               return (
-                <div className="ams-strip">
-                  <div className="ams-label">AMS</div>
-                  <div className="ams-trays">
+                <div className="ams-block">
+                  <div className="ams-block-head">
+                    <span>AMS</span>
+                    {activeTray && (
+                      <span className="ams-block-active">
+                        <span className="arrow">→</span>
+                        Slot {activeIdx + 1} · {activeTray.tray_type || ''}
+                      </span>
+                    )}
+                  </div>
+                  <div className="ams-grid-4">
                     {[0, 1, 2, 3].map(i => {
                       const tray = trays.find(t => parseInt(t.id, 10) === i);
                       const hasFilament = tray && tray.tray_color;
@@ -456,28 +469,32 @@ ${cardSel} .printer-card {
                       const material = tray?.tray_type || '';
                       const remain = tray?.remain ?? -1;
                       const isActive = i === activeIdx;
+
+                      if (!hasFilament) {
+                        return (
+                          <div key={i} className="slot empty" title={`Slot ${i + 1}: Empty`}>
+                            <span className="slot-num">{i + 1}</span>
+                            <div className="slot-head">
+                              <span className="slot-sw"></span>
+                              <span className="slot-mat">Empty</span>
+                            </div>
+                          </div>
+                        );
+                      }
                       return (
-                        <div
-                          key={i}
-                          className={`ams-tray${isActive ? ' ams-tray--active' : ''}${!hasFilament ? ' ams-tray--empty' : ''}`}
-                          title={hasFilament ? `${material}${remain >= 0 ? ` — ${remain}%` : ''}` : `Slot ${i + 1}: Empty`}
-                        >
-                          <div
-                            className="ams-tray-swatch"
-                            style={{
-                              backgroundColor: color || 'transparent',
-                              borderColor: color
-                                ? `color-mix(in srgb, ${color} 60%, black)`
-                                : 'var(--border)',
-                            }}
-                          />
-                          <span className="ams-tray-material">{material || '—'}</span>
-                          {hasFilament && remain >= 0 && (
-                            <div className="ams-tray-remain-track">
-                              <div
-                                className="ams-tray-remain-fill"
-                                style={{ width: `${remain}%`, backgroundColor: color }}
-                              />
+                        <div key={i} className={`slot${isActive ? ' active' : ''}`}
+                             title={`${material}${remain >= 0 ? ` — ${remain}%` : ''}`}>
+                          <span className="slot-num">{i + 1}</span>
+                          <div className="slot-head">
+                            <span className="slot-sw" style={{ background: color }}></span>
+                            <span className="slot-mat">{material}</span>
+                          </div>
+                          {remain >= 0 && (
+                            <div className="slot-bar-row">
+                              <div className="slot-bar">
+                                <div className="slot-bar-fill" style={{ width: `${remain}%`, background: color }}></div>
+                              </div>
+                              <span className="slot-mass">{remain}%</span>
                             </div>
                           )}
                         </div>

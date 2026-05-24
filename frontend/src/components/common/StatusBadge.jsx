@@ -7,7 +7,13 @@ const STATE_LABELS = {
   complete: 'Complete',
 };
 
-export default function StatusBadge({ state }) {
+export default function StatusBadge({ state, live = false }) {
   const label = STATE_LABELS[state] || state;
-  return <span className={`status-badge status-badge--${state}`}>{label}</span>;
+  const cls = `chip chip--filled chip--${state}${live ? ' chip--live' : ''}`;
+  return (
+    <span className={cls}>
+      {live && <span className="chip-dot"></span>}
+      {label}
+    </span>
+  );
 }

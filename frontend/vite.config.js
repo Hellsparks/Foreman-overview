@@ -21,13 +21,13 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'http://localhost:3000',
+        target: `http://localhost:${process.env.PORT || 3000}`,
         changeOrigin: true,
         proxyTimeout: 1800000, // 30 min — allows long-running ops like Docker builds
         timeout: 1800000,
       },
       '/themes': {
-        target: 'http://localhost:3000',
+        target: `http://localhost:${process.env.PORT || 3000}`,
         changeOrigin: true,
       },
     },
