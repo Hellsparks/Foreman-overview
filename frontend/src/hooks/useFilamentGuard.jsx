@@ -147,7 +147,10 @@ export function useFilamentGuard({ onConfirm, onWeighSpool, onClearBambuWarning,
             <div className="spool-dialog-overlay" onClick={cancelGuard} style={{ zIndex: 9999 }}>
                 <div className="spool-dialog pending-drop-dialog" onClick={e => e.stopPropagation()}>
                     <div className="spool-dialog-header">
-                        <h3 className="spool-dialog-title">⚠️ Assignment Warning</h3>
+                        <h3 className="spool-dialog-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--warning)', flexShrink: 0 }}><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                          Assignment Warning
+                        </h3>
                         <button className="spool-dialog-close" onClick={cancelGuard}>✕</button>
                     </div>
                     <div className="pending-drop-spool-info">
@@ -165,9 +168,9 @@ export function useFilamentGuard({ onConfirm, onWeighSpool, onClearBambuWarning,
                     <div className="pending-drop-warnings">
                         {pendingAssignment.warnings.map((w, i) => (
                             <div key={i} className={`pending-drop-warning pending-drop-warning--${w.type}`}>
-                                {w.type === 'incompatible' && <span className="pending-drop-icon">🚫</span>}
-                                {w.type === 'bambu_used' && <span className="pending-drop-icon">📦</span>}
-                                {(w.type === 'printing' || w.type === 'in_use') && <span className="pending-drop-icon" style={{ animation: 'pulse 1s infinite' }}>🔥</span>}
+                                {w.type === 'incompatible' && <span className="pending-drop-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.9" y1="4.9" x2="19.1" y2="19.1"/></svg></span>}
+                                {w.type === 'bambu_used' && <span className="pending-drop-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg></span>}
+                                {(w.type === 'printing' || w.type === 'in_use') && <span className="pending-drop-icon" style={{ animation: 'pulse 1s infinite' }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></span>}
                                 <span>{w.message}</span>
                             </div>
                         ))}
