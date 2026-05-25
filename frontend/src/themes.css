@@ -206,25 +206,25 @@
     --border:    #3a2858;
     --text:      #e4d7ff;
     --text-muted: #9282b8;
-    --primary:   #8b3fd9;
-    --primary-d: #6e30b3;
-    --danger:    #ff3050;
-    --warning:   #f5be3e;
+    --primary:   #6fcb50;     /* Eva-01 lime green highlight */
+    --primary-d: #52a039;
+    --danger:    #ff3050;     /* NERV crimson */
+    --warning:   #f5be3e;     /* Eva-01 yellow horn */
     --success:   #6fcb50;
     --offline:   #4a3c5e;
-    --shadow:    0 2px 14px rgba(139, 63, 217, .15);
-    --card-glow: 0 0 18px rgba(139, 63, 217, .08);
-    --card-glow-active: 0 0 22px rgba(139, 63, 217, .22);
+    --shadow:    0 2px 14px rgba(111, 203, 80, .12);
+    --card-glow: 0 0 18px rgba(111, 203, 80, .08);
+    --card-glow-active: 0 0 22px rgba(111, 203, 80, .20);
 }
 
 [data-theme="eva"] .navbar {
     background: #1a1130;
-    border-bottom-color: #8b3fd922;
+    border-bottom-color: #6fcb5022;
 }
 
 [data-theme="eva"] .sidebar {
     background: #1a1130;
-    border-right-color: #8b3fd918;
+    border-right-color: #6fcb5018;
 }
 
 /* ─── Hazard ─────────────────────────────────────────────────────── */

@@ -6,7 +6,7 @@ const THEMES = [
     { id: 'mono',      name: 'Mono',      colors: ['#f5f5f5', '#e10600'] },
     { id: 'marathon',  name: 'Marathon',  colors: ['#060503', '#ff9c00'] },
     { id: 'cyberpunk', name: 'Cyberpunk', colors: ['#0a0015', '#ff00ff'] },
-    { id: 'eva',       name: 'Eva',       colors: ['#0f0820', '#8b3fd9'] },
+    { id: 'eva',       name: 'Eva',       colors: ['#0f0820', '#6fcb50'] },
     { id: 'stark',     name: 'Stark',     colors: ['#0a0807', '#c4271c'] },
     { id: 'hazard',    name: 'Hazard',    colors: ['#1a1a1a', '#fdb931'] },
     { id: 'ocean',     name: 'Ocean',     colors: ['#091a2a', '#00b4d8'] },

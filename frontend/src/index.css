@@ -1080,6 +1080,11 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 .ams-block-active { color: var(--text); font-weight: 600; text-transform: none; letter-spacing: 0; font-size: 11px; font-family: ui-monospace, Menlo, monospace; }
 .ams-block-active .arrow { color: var(--primary); margin-right: 4px; }
 .ams-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.ams-grid-5 { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; }
+.ams-grid-9 { display: grid; grid-template-columns: repeat(9, 1fr); gap: 4px; }
+.ams-card-body { display: flex; flex-direction: column; gap: 10px; }
+.ams-unit { display: flex; flex-direction: column; gap: 6px; }
+.ams-unit-label { font: 700 9px var(--font-mono); text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted); }
 
 .slot {
   background: var(--surface2); border: 1px solid var(--border);
