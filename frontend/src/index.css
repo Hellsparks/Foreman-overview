@@ -1854,6 +1854,49 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   gap: 12px;
 }
 
+.ft-target-cell {
+  display: grid;
+  grid-template-columns: 1fr 44px;
+  gap: 4px;
+  align-items: center;
+}
+
+.ft-size-cell {
+  display: grid;
+  grid-template-columns: 1fr 56px;
+  gap: 4px;
+  align-items: center;
+}
+
+.ft-sliced-chip {
+  font: 600 10px var(--font-sans); text-transform: uppercase; letter-spacing: .04em;
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--primary) 25%, transparent);
+  border-radius: 4px; padding: 2px 6px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.ft-star-chip {
+  display: inline-flex; align-items: center; gap: 3px; justify-self: end;
+  font: 600 10px var(--font-mono); font-variant-numeric: tabular-nums;
+  color: var(--success);
+  background: color-mix(in srgb, var(--success) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--success) 25%, transparent);
+  border-radius: 4px; padding: 2px 5px;
+  white-space: nowrap;
+}
+
+.ft-material-chip {
+  font: 600 10px var(--font-sans); text-transform: uppercase; letter-spacing: .04em;
+  justify-self: end; white-space: nowrap;
+  border-radius: 4px; padding: 2px 6px;
+}
+
+.ft-placeholder {
+  color: var(--text-muted);
+}
+
 /* ─── File Grid  ─────────────────────────────────────────────────── */
 .file-grid {
   display: grid;
@@ -4590,8 +4633,12 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   background: var(--surface2);
 }
 
-.file-row-selected {
-  background: color-mix(in srgb, var(--primary) 12%, var(--surface)) !important;
+.file-row-selected td:first-child {
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+
+.file-row-selected td {
+  background: color-mix(in srgb, var(--primary) 8%, var(--surface)) !important;
 }
 
 .file-card-selected {

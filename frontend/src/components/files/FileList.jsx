@@ -57,6 +57,15 @@ export default function FileList({ files, onDeleted, viewMode = 'list' }) {
       {viewMode === 'list' ? (
         <div className="file-table-wrap">
           <table className="file-table">
+            <colgroup>
+              <col />
+              <col style={{ width: '160px' }} />
+              <col style={{ width: '180px' }} />
+              <col style={{ width: '90px' }} />
+              <col style={{ width: '90px' }} />
+              <col style={{ width: '140px' }} />
+              <col style={{ width: '110px' }} />
+            </colgroup>
             <thead>
               <tr>
                 <th>Name</th>
@@ -69,88 +78,84 @@ export default function FileList({ files, onDeleted, viewMode = 'list' }) {
               </tr>
             </thead>
             <tbody>
-              {files.map(file => (
-                <tr
-                  key={file.id}
-                  onClick={() => selectFile(file)}
-                  className={`file-row-clickable${selected?.file?.id === file.id ? ' file-row-selected' : ''}`}
-                  draggable="true"
-                  onDragStart={(e) => {
-                    const data = { type: 'file', id: file.id };
-                    e.dataTransfer.setData('application/json', JSON.stringify(data));
-                    e.dataTransfer.effectAllowed = 'move';
-                  }}
-                >
-                  <td>
-                    <div className="file-name-cell">
-                      {file.has_thumbnail ? (
-                        <img src={`/api/files/thumb/${file.filename}`} alt="preview" className="file-list-thumb" />
-                      ) : (
-                        <div className="file-list-thumb" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <span style={{ color: '#666', fontSize: '10px' }}>N/A</span>
-                        </div>
-                      )}
-                      <span className="file-name">{file.display_name}</span>
-                    </div>
-                  </td>
-                  <td>
-                    {file.sliced_for ? (
-                      <span className="badge badge-info" title="Sliced for this printer model">
-                        {file.sliced_for}
-                      </span>
-                    ) : (
-                      <span className="text-muted">—</span>
-                    )}
-                    {fileStats[file.display_name] && (
-                      <span className="badge badge-success" style={{ marginLeft: '4px' }} title={`Completed ${fileStats[file.display_name].print_count} times`}>
-                        ★ {fileStats[file.display_name].print_count}
-                      </span>
-                    )}
-                  </td>
-                  <td>
-                    {file.max_x != null && file.min_x != null ? (
-                      <div className="print-dimensions">
-                        <span>
-                          {(file.max_x - file.min_x).toFixed(1)} × {(file.max_y - file.min_y).toFixed(1)} × {(file.max_z - (file.min_z || 0)).toFixed(1)}mm
-                        </span>
-                        {file.filament_type && (
-                          <span className={`badge badge-filament filament-${file.filament_type}`}>{file.filament_type}</span>
+              {files.map(file => {
+                const stats = fileStats[file.display_name];
+                const dims = file.max_x != null && file.min_x != null
+                  ? `${(file.max_x - file.min_x).toFixed(1)} × ${(file.max_y - file.min_y).toFixed(1)} × ${(file.max_z - (file.min_z || 0)).toFixed(1)}mm`
+                  : file.max_z != null
+                    ? `H: ${(file.max_z - (file.min_z || 0)).toFixed(1)}mm`
+                    : null;
+                return (
+                  <tr
+                    key={file.id}
+                    onClick={() => selectFile(file)}
+                    className={`file-row-clickable${selected?.file?.id === file.id ? ' file-row-selected' : ''}`}
+                    draggable="true"
+                    onDragStart={(e) => {
+                      const data = { type: 'file', id: file.id };
+                      e.dataTransfer.setData('application/json', JSON.stringify(data));
+                      e.dataTransfer.effectAllowed = 'move';
+                    }}
+                  >
+                    <td>
+                      <div className="file-name-cell">
+                        {file.has_thumbnail ? (
+                          <img src={`/api/files/thumb/${file.filename}`} alt="preview" className="file-list-thumb" />
+                        ) : (
+                          <div className="file-list-thumb" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <span style={{ color: '#666', fontSize: '10px' }}>N/A</span>
+                          </div>
                         )}
+                        <span className="file-name">{file.display_name}</span>
                       </div>
-                    ) : file.max_z != null ? (
-                      <div className="print-dimensions">
-                        <span>H: {(file.max_z - (file.min_z || 0)).toFixed(1)}mm</span>
-                        {file.filament_type && (
-                          <span className={`badge badge-filament filament-${file.filament_type}`}>{file.filament_type}</span>
-                        )}
+                    </td>
+                    <td>
+                      <div className="ft-target-cell">
+                        {file.sliced_for
+                          ? <span className="ft-sliced-chip" title="Sliced for this printer model">{file.sliced_for}</span>
+                          : <span className="ft-placeholder">—</span>
+                        }
+                        {stats
+                          ? (
+                            <span className="ft-star-chip" title={`Completed ${stats.print_count} times`}>
+                              <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/></svg>
+                              {stats.print_count}
+                            </span>
+                          )
+                          : <span />
+                        }
                       </div>
-                    ) : file.filament_type ? (
-                      <div className="print-dimensions">
-                        {file.filament_type && (
-                          <span className={`badge badge-filament filament-${file.filament_type}`}>{file.filament_type}</span>
-                        )}
+                    </td>
+                    <td>
+                      <div className="ft-size-cell">
+                        {dims
+                          ? <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{dims}</span>
+                          : <span className="ft-placeholder">—</span>
+                        }
+                        {file.filament_type
+                          ? <span className={`badge badge-filament filament-${file.filament_type} ft-material-chip`}>{file.filament_type}</span>
+                          : <span />
+                        }
                       </div>
-                    ) : (
-                      <span className="text-muted">—</span>
-                    )}
-                  </td>
-                  <td>{formatBytes(file.size_bytes)}</td>
-                  <td>
-                    <span className="source-badge">{file.slicer_name || file.upload_source}</span>
-                  </td>
-                  <td>{formatDate(file.created_at)}</td>
-                  <td>
-                    <div className="file-actions">
-                      <button className="btn btn-sm btn-primary" onClick={() => setSendingFile(file)}>
-                        Send
-                      </button>
-                      <button className="btn btn-sm btn-danger" onClick={() => setDeletingId(file.id)}>
-                        Delete
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td>{formatBytes(file.size_bytes)}</td>
+                    <td>
+                      <span className="source-badge">{file.slicer_name || file.upload_source}</span>
+                    </td>
+                    <td>{formatDate(file.created_at)}</td>
+                    <td>
+                      <div className="file-actions">
+                        <button className="btn btn-sm btn-primary" onClick={() => setSendingFile(file)}>
+                          Send
+                        </button>
+                        <button className="btn btn-sm btn-danger" onClick={() => setDeletingId(file.id)}>
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
