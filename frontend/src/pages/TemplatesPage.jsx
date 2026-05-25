@@ -215,10 +215,10 @@ export default function TemplatesPage() {
 
                     <ViewToggle viewMode={viewMode} onChange={updateViewMode} />
 
-                    <button className="btn btn-surface2" style={{ padding: '8px 16px', height: '40px', background: 'var(--surface2)', border: '1px solid var(--border)', whiteSpace: 'nowrap' }} onClick={handleNewFolder}>
+                    <button className="btn" style={{ background: 'var(--surface2)', border: '1px solid var(--border)' }} onClick={handleNewFolder}>
                         New Folder
                     </button>
-                    <button className="btn btn-primary" style={{ padding: '8px 16px', height: '40px', whiteSpace: 'nowrap' }} onClick={openNewModal}>
+                    <button className="btn btn-primary" onClick={openNewModal}>
                         New Template
                     </button>
                 </div>

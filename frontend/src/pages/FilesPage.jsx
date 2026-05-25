@@ -149,7 +149,7 @@ export default function FilesPage() {
             )}
           </div>
 
-          <button className="btn btn-primary" style={{ padding: '8px 16px', height: '40px' }} onClick={handleNewFolder}>
+          <button className="btn btn-primary" onClick={handleNewFolder}>
             + New Folder
           </button>
 
