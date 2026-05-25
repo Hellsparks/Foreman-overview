@@ -71,7 +71,7 @@ export default function ColoriometerPanel() {
         const isSecure = typeof window !== 'undefined' && window.isSecureContext;
         const tip = isSecure
             ? 'TD1 colorimeter requires Chrome or Edge (Web Serial API not available in this browser)'
-            : 'TD1 colorimeter requires a secure context — access Marathon via HTTPS or use localhost instead of an IP address';
+            : 'TD1 colorimeter requires a secure context — access Foreman via HTTPS or use localhost instead of an IP address';
         return (
             <button
                 type="button"

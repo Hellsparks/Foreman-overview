@@ -318,7 +318,7 @@ export default function PrinterForm({ printer, onSaved, onCancel }) {
                     </button>
                   </div>
                   <span className="form-optional" style={{ display: 'block', marginTop: '2px' }}>
-                    Set Marathon's URL as the OctoPrint host in your slicer and this key as the API key. "Upload and Print" will auto-start on this printer.
+                    Set Foreman's URL as the OctoPrint host in your slicer and this key as the API key. "Upload and Print" will auto-start on this printer.
                   </span>
                 </label>
               )}

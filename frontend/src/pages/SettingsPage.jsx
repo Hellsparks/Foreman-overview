@@ -607,7 +607,7 @@ export default function SettingsPage() {
 
   async function handleDbImport() {
     if (!dbImportFile) return;
-    if (!confirm('This will replace the entire Marathon database and gcode files with the uploaded backup.\n\nA backup of the current data will be saved first.\n\nContinue?')) return;
+    if (!confirm('This will replace the entire Foreman database and gcode files with the uploaded backup.\n\nA backup of the current data will be saved first.\n\nContinue?')) return;
     setDbImportBusy(true);
     setDbImportResult(null);
     try {
@@ -1159,8 +1159,8 @@ export default function SettingsPage() {
       {/* ════════════════════ 6. Backup & Restore ════════════════════ */}
       <Section title="Backup & Restore" defaultOpen={false}>
         <div className="settings-card">
-          <h3 className="settings-card-title">Marathon Database</h3>
-          <p className="settings-card-desc">Export or restore the entire Marathon database — printers, print history, maintenance, settings, and more.</p>
+          <h3 className="settings-card-title">Foreman Database</h3>
+          <p className="settings-card-desc">Export or restore the entire Foreman database — printers, print history, maintenance, settings, and more.</p>
           <div className="settings-2col" style={{ gap: '16px' }}>
             {/* Export */}
             <div>
@@ -1210,7 +1210,7 @@ export default function SettingsPage() {
         <div className="settings-card" style={{ marginTop: '16px' }}>
           <h3 className="settings-card-title">Scheduled Backups</h3>
           <p className="settings-card-desc">
-            Automatically back up Marathon and Spoolman on a schedule. Backups are saved as <code>.zip</code> files.
+            Automatically back up Foreman and Spoolman on a schedule. Backups are saved as <code>.zip</code> files.
           </p>
 
           {/* Backup directories */}
@@ -1288,7 +1288,7 @@ export default function SettingsPage() {
             {/* Marathon */}
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
-                <strong style={{ fontSize: '13px' }}>Marathon</strong>
+                <strong style={{ fontSize: '13px' }}>Foreman</strong>
                 <label style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '13px', cursor: 'pointer' }}>
                   <input type="checkbox" checked={marathonBackupEnabled}
                     onChange={async e => {

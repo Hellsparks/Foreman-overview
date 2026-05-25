@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 
 const REPOS = [
     {
-        label: 'Marathon Overview',
+        label: 'Foreman',
         desc: 'Fleet management dashboard',
         url: 'https://github.com/Hellsparks/marathon-overview',
     },
@@ -102,7 +102,7 @@ export default function GitHubLinks() {
                     ))}
                     <div style={{ height: 1, background: 'var(--border)', margin: '4px 0' }} />
                     <div style={{ padding: '6px 14px 10px', fontSize: '11px', color: 'var(--text-muted)' }}>
-                        Marathon v{__APP_VERSION__}
+                        Foreman v{__APP_VERSION__}
                     </div>
                 </div>
             )}
