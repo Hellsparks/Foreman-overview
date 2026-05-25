@@ -6,6 +6,13 @@ import { checkCompatibility } from '../../api/presets';
 import { getSpools, setActiveSpool } from '../../api/spoolman';
 import { useFilamentGuard } from '../../hooks/useFilamentGuard';
 
+function hl(text, q) {
+  if (!q || !text) return text;
+  const i = text.toLowerCase().indexOf(q.toLowerCase());
+  if (i === -1) return text;
+  return <>{text.slice(0, i)}<mark className="inv-match">{text.slice(i, i + q.length)}</mark>{text.slice(i + q.length)}</>;
+}
+
 export default function SendToPrinterModal({ file, onClose }) {
   const { printers } = usePrinters();
   const { status: statuses } = useStatus();
@@ -19,6 +26,7 @@ export default function SendToPrinterModal({ file, onClose }) {
   const [spools, setSpools] = useState([]);
   const [spoolsLoaded, setSpoolsLoaded] = useState(false);
   const [spoolAction, setSpoolAction] = useState('ignore'); // 'ignore', 'clear', 'active', or spool.id
+  const [spoolSearch, setSpoolSearch] = useState('');
 
   const { startGuard, renderGuardDialog } = useFilamentGuard({
     onConfirm: async (spool, printer, _trayId, act) => {
@@ -111,6 +119,15 @@ export default function SendToPrinterModal({ file, onClose }) {
   const compatibleSpools = spools.filter(s =>
     s.filament?.material?.toUpperCase() === targetMaterial && s.remaining_weight > 0
   ).sort((a, b) => b.remaining_weight - a.remaining_weight); // sort with most remaining first
+
+  const q = spoolSearch.trim().toLowerCase();
+  const filteredSpools = q
+    ? compatibleSpools.filter(s =>
+        (s.filament?.name || '').toLowerCase().includes(q) ||
+        (s.filament?.vendor?.name || '').toLowerCase().includes(q) ||
+        (s.filament?.color_hex || '').toLowerCase().includes(q)
+      )
+    : compatibleSpools;
 
   return (
     <div className="dialog-overlay" onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}>
@@ -217,49 +234,82 @@ export default function SendToPrinterModal({ file, onClose }) {
                   className={`spool-action-btn ${spoolAction === 'ignore' ? 'selected' : ''}`}
                   onClick={() => setSpoolAction('ignore')}
                 >
-                  <span>➖</span> Ignore Spool Tracking
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+                  Ignore Spool Tracking
                 </button>
                 <button
                   className={`spool-action-btn ${spoolAction === 'clear' ? 'selected' : ''}`}
                   onClick={() => setSpoolAction('clear')}
                 >
-                  <span>🧹</span> Clear Active Spool
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                  Clear Active Spool
                 </button>
                 <button
                   className={`spool-action-btn ${spoolAction === 'active' ? 'selected' : ''}`}
                   onClick={() => setSpoolAction('active')}
                   disabled={!activeSpool}
                 >
-                  <span>♻️</span> Use Currently Active Spool {activeSpool ? `(${activeSpool.filament_name})` : '(None active)'}
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 0 1 15.5-6.3L21 8"/><polyline points="21 3 21 8 16 8"/><path d="M21 12a9 9 0 0 1-15.5 6.3L3 16"/><polyline points="3 21 3 16 8 16"/></svg>
+                  Use Currently Active Spool {activeSpool ? `(${activeSpool.filament_name})` : '(None active)'}
                 </button>
 
-                {targetMaterial && compatibleSpools.length > 0 && (
-                  <div style={{ marginTop: '12px', marginBottom: '8px', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>
-                    COMPATIBLE INVENTORY ({targetMaterial})
-                  </div>
-                )}
-
-                {compatibleSpools.map(spool => (
-                  <div
-                    key={spool.id}
-                    className={`mini-spool-card ${spoolAction === spool.id ? 'selected' : ''} ${activeSpool?.id === spool.id && spoolAction !== spool.id ? 'active-spool-marker' : ''}`}
-                    onClick={() => setSpoolAction(spool.id)}
-                  >
-                    <div className="spool-color-dot" style={{ '--spool-color': `#${spool.filament?.color_hex || '888'}` }}></div>
-                    <div className="mini-spool-info">
-                      <div className="mini-spool-name">{spool.filament?.name || 'Unnamed Filament'}</div>
-                      <div className="mini-spool-vendor">{spool.filament?.vendor?.name || 'Unknown Vendor'}</div>
+                {targetMaterial && (
+                  <>
+                    <div style={{ marginTop: '12px', marginBottom: '6px', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>
+                      COMPATIBLE INVENTORY ({targetMaterial})
                     </div>
-                    <div className="mini-spool-weight">
-                      {spool.remaining_weight ? `${Math.round(spool.remaining_weight)}g` : '?'}
-                    </div>
-                  </div>
-                ))}
 
-                {targetMaterial && compatibleSpools.length === 0 && (
-                  <p className="text-muted" style={{ fontSize: '12px', textAlign: 'center', marginTop: '16px' }}>
-                    No spools matching '{targetMaterial}' found in Spoolman with weight remaining.
-                  </p>
+                    <label className="inv-search">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, color: 'var(--text-muted)' }}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                      <input
+                        type="text"
+                        placeholder="Search filament, vendor, colour…"
+                        value={spoolSearch}
+                        onChange={e => setSpoolSearch(e.target.value)}
+                      />
+                      {spoolSearch && (
+                        <button className="inv-search-clear" onClick={() => setSpoolSearch('')}>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        </button>
+                      )}
+                    </label>
+
+                    <span className="inv-count">{filteredSpools.length} of {compatibleSpools.length}</span>
+
+                    <div className="inv-scroll">
+                      {filteredSpools.map(spool => {
+                        const isActive = activeSpool?.id === spool.id;
+                        return (
+                          <div
+                            key={spool.id}
+                            className={`mini-spool-card ${spoolAction === spool.id ? 'selected' : ''} ${isActive && spoolAction !== spool.id ? 'active-spool-marker' : ''}`}
+                            onClick={() => setSpoolAction(spool.id)}
+                          >
+                            <div className="spool-color-dot" style={{ '--spool-color': `#${spool.filament?.color_hex || '888'}` }}></div>
+                            <div className="mini-spool-info">
+                              <div className="mini-spool-name">{hl(spool.filament?.name || 'Unnamed Filament', q)}</div>
+                              <div className="mini-spool-vendor">{hl(spool.filament?.vendor?.name || 'Unknown Vendor', q)}</div>
+                            </div>
+                            <div className="mini-spool-weight">
+                              {spool.remaining_weight ? `${Math.round(spool.remaining_weight)}g` : '?'}
+                            </div>
+                            {isActive && <span className="inv-loaded-badge">Loaded</span>}
+                          </div>
+                        );
+                      })}
+
+                      {compatibleSpools.length === 0 && (
+                        <p className="text-muted" style={{ fontSize: '12px', textAlign: 'center', padding: '12px 0' }}>
+                          No spools matching '{targetMaterial}' found in Spoolman with weight remaining.
+                        </p>
+                      )}
+                      {compatibleSpools.length > 0 && filteredSpools.length === 0 && (
+                        <p className="text-muted" style={{ fontSize: '12px', textAlign: 'center', padding: '12px 0' }}>
+                          No spools match "{spoolSearch}"
+                        </p>
+                      )}
+                    </div>
+                  </>
                 )}
               </div>
             </div>

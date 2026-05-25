@@ -1695,6 +1695,58 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   background: color-mix(in srgb, var(--primary) 10%, transparent);
 }
 
+/* ─── SendToPrinterModal — searchable inventory ─────────────────── */
+.inv-search {
+  display: flex; align-items: center; gap: 8px;
+  height: 32px; padding: 0 10px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 6px; margin-bottom: 6px;
+  cursor: text; flex-shrink: 0;
+  transition: border-color .15s;
+}
+.inv-search:focus-within {
+  border-color: var(--primary);
+}
+.inv-search input {
+  flex: 1; background: none; border: 0; outline: none;
+  color: var(--text); font: 13px var(--font-sans);
+}
+.inv-search input::placeholder { color: var(--text-muted); }
+.inv-search-clear {
+  background: none; border: 0; padding: 0; cursor: pointer;
+  color: var(--text-muted); display: flex; align-items: center;
+  line-height: 1;
+}
+.inv-search-clear:hover { color: var(--text); }
+
+.inv-count {
+  font: 600 10px var(--font-mono); text-transform: uppercase; letter-spacing: .04em;
+  color: var(--text-muted); background: var(--surface2);
+  border: 1px solid var(--border); border-radius: 4px;
+  padding: 2px 7px; margin-bottom: 8px; display: inline-block; flex-shrink: 0;
+}
+
+.inv-scroll {
+  max-height: 192px; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.inv-scroll::-webkit-scrollbar { width: 6px; }
+.inv-scroll::-webkit-scrollbar-track { background: transparent; }
+.inv-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+.inv-match {
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 22%, transparent);
+  border-radius: 2px; font-style: normal;
+}
+
+.inv-loaded-badge {
+  font: 700 9px var(--font-sans); text-transform: uppercase; letter-spacing: .06em;
+  color: var(--warning); background: color-mix(in srgb, var(--warning) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--warning) 35%, transparent);
+  border-radius: 4px; padding: 1px 5px; margin-left: auto; flex-shrink: 0;
+}
+
 .dialog p {
   margin-bottom: 12px;
 }
