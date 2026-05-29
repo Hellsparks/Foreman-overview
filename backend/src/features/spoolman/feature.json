@@ -1,0 +1,5 @@
+{
+  "id": "spoolman",
+  "mountPath": "/api/spoolman",
+  "enabled": true
+}

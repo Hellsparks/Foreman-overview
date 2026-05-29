@@ -1,0 +1,5 @@
+{
+  "id": "templates",
+  "mountPath": "/api/templates",
+  "enabled": true
+}

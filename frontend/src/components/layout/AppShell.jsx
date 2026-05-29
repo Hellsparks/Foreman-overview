@@ -11,14 +11,21 @@ import InventoryPanel from '../rightpanel/InventoryPanel';
 import MaintenancePanel from '../rightpanel/MaintenancePanel';
 import ProjectStatusPanel from '../rightpanel/ProjectStatusPanel';
 import { RightPanelContext } from '../../contexts/RightPanelContext';
-import { PrinterStatusContext } from '../../contexts/PrinterStatusContext';
+import { PrinterStatusProvider, usePrinterStatus } from '../../contexts/PrinterStatusContext';
 import { ToastProvider } from '../../contexts/ToastContext';
 import { PrintersProvider } from '../../contexts/PrintersContext';
-import { useStatus } from '../../hooks/useStatus';
 import useIsMobile from '../../hooks/useIsMobile';
 
 export default function AppShell() {
-  const { status, error } = useStatus();
+  return (
+    <PrinterStatusProvider>
+      <AppShellInner />
+    </PrinterStatusProvider>
+  );
+}
+
+function AppShellInner() {
+  const { status, error } = usePrinterStatus();
   const location = useLocation();
   const [selected, setSelected] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -52,7 +59,6 @@ export default function AppShell() {
   return (
     <ToastProvider>
       <PrintersProvider>
-      <PrinterStatusContext.Provider value={status}>
         <RightPanelContext.Provider value={{ selected, setSelected }}>
           <div className="app-shell">
             <NavBar
@@ -97,7 +103,6 @@ export default function AppShell() {
             {isMobile && <MobileTabBar />}
           </div>
         </RightPanelContext.Provider>
-      </PrinterStatusContext.Provider>
       </PrintersProvider>
     </ToastProvider>
   );

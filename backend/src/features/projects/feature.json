@@ -1,0 +1,5 @@
+{
+  "id": "projects",
+  "mountPath": "/api/projects",
+  "enabled": true
+}

@@ -2,51 +2,17 @@ const { getDb } = require('../db');
 const { getClient } = require('./clientFactory');
 const bambuManager = require('./bambuManager');
 const printerCache = require('./printerCache');
+const { detectTerminalStatus, logJob } = require('./jobLogger');
+const { getSpoolDetails, getActiveSpoolId, clearSpoolCache } = require('./spoolCache');
 
 const POLL_INTERVAL_ACTIVE_MS = 3000;  // When any printer is printing
 const POLL_INTERVAL_IDLE_MS   = 10000; // When all printers are idle
 let pollTimer = null;
 let polling = false; // stacking guard
 
-// Spool detail cache: spoolId → { data, fetchedAt }
-const spoolCache = new Map();
-const SPOOL_CACHE_TTL_MS = 30_000; // 30 seconds
-
-// Active spool ID cache: printerId → { spoolId, fetchedAt }
-// Avoids hitting Moonraker's /server/spoolman/spool_id every poll cycle
-const activeSpoolIdCache = new Map();
-const ACTIVE_SPOOL_ID_TTL_MS = 15_000; // 15 seconds — spool changes are rare
-
 // Printer state tracking to log finished/cancelled jobs
 // Maps printerId -> { state, filename, startTime, activeSpool }
 const previousStates = new Map();
-
-/** Fetch full spool details from Spoolman, with caching */
-async function getSpoolDetails(spoolId, spoolmanUrl) {
-  if (!spoolId || !spoolmanUrl) return null;
-  const cached = spoolCache.get(spoolId);
-  if (cached && Date.now() - cached.fetchedAt < SPOOL_CACHE_TTL_MS) return cached.data;
-  try {
-    const r = await fetch(`${spoolmanUrl}/api/v1/spool/${spoolId}`, {
-      signal: AbortSignal.timeout(5000),
-    });
-    if (!r.ok) return null;
-    const spool = await r.json();
-    const data = {
-      id: spool.id,
-      filament_name: spool.filament?.name ?? '',
-      material: spool.filament?.material ?? '',
-      color_hex: spool.filament?.color_hex ?? '',
-      vendor: spool.filament?.vendor?.name ?? '',
-      remaining_weight: Math.round(spool.remaining_weight ?? 0),
-      initial_weight: Math.round(spool.initial_weight ?? 0),
-    };
-    spoolCache.set(spoolId, { data, fetchedAt: Date.now() });
-    return data;
-  } catch {
-    return null;
-  }
-}
 
 async function pollAll() {
   // Stacking guard: if previous poll hasn't finished, skip this cycle entirely.
@@ -83,17 +49,10 @@ async function _pollAllInner() {
         const status = await client.getStatus();
 
         // Fetch active spool from Moonraker → Spoolman (Moonraker-only)
-        // Cached to avoid an extra HTTP round-trip to the printer every cycle
+        // Both lookups are TTL-cached to avoid extra HTTP round-trips every cycle
         let activeSpool = null;
         if (spoolmanUrl && (!printer.firmware_type || printer.firmware_type === 'moonraker')) {
-          const cachedId = activeSpoolIdCache.get(printer.id);
-          let spoolId;
-          if (cachedId && Date.now() - cachedId.fetchedAt < ACTIVE_SPOOL_ID_TTL_MS) {
-            spoolId = cachedId.spoolId;
-          } else {
-            spoolId = await client.getActiveSpoolId();
-            activeSpoolIdCache.set(printer.id, { spoolId, fetchedAt: Date.now() });
-          }
+          const spoolId = await getActiveSpoolId(client, printer.id);
           if (spoolId) {
             activeSpool = await getSpoolDetails(spoolId, spoolmanUrl);
           }
@@ -136,15 +95,15 @@ async function _pollAllInner() {
                   : 'complete'; // standby after active job = assume complete
                 const duration = status.print_stats?.total_duration || status.print_stats?.print_duration || 0;
                 const filamentUsed = status.print_stats?.filament_used || 0;
-                const result = db.prepare(`
-                  INSERT INTO gcode_print_jobs
-                  (printer_id, filename, total_duration_s, filament_used_mm, status, plate_id)
-                  VALUES (?, ?, ?, ?, ?, ?)
-                `).run(printer.id, staleJob.filename, Math.round(duration), filamentUsed, terminalStatus, staleJob.plate_id || null);
-                if (staleJob.plate_id) {
-                  db.prepare(`UPDATE project_plates SET status = ?, print_job_id = ?, completed_at = datetime('now') WHERE id = ?`)
-                    .run(terminalStatus === 'complete' ? 'done' : terminalStatus === 'cancelled' ? 'pending' : 'failed', result.lastInsertRowid, staleJob.plate_id);
-                }
+                logJob(db, {
+                  printerId: printer.id,
+                  filename: staleJob.filename,
+                  durationS: duration,
+                  filamentUsedMm: filamentUsed,
+                  spool: null,
+                  status: terminalStatus,
+                  plateId: staleJob.plate_id || null,
+                });
                 db.prepare('DELETE FROM printer_active_jobs WHERE printer_id = ?').run(printer.id);
                 if (duration > 0) db.prepare('UPDATE printers SET runtime_s = runtime_s + ? WHERE id = ?').run(Math.round(duration), printer.id);
                 console.log(`[Poller] Startup recovery: logged stale job "${staleJob.filename}" (${terminalStatus}) on Printer ${printer.id}`);
@@ -158,51 +117,12 @@ async function _pollAllInner() {
         if (prevStateObj) {
           const prevState = prevStateObj.state;
 
-          // Detect terminal transition.
-          // Active states: printing, paused, cancelling (any state where a job is in flight)
-          // Terminal states: complete, cancelled, error, standby (job is done)
-          //
-          // Firmware notes:
-          //   Moonraker:   printing/paused → complete | cancelled | error
-          //   OctoPrint:   printing → complete (via "Finishing" mapping), cancelling → standby
-          //   Duet:        printing → standby (natural finish), cancelling → standby (cancel done)
-          let terminalStatus = null;
-
-          if (prevState === 'printing' || prevState === 'paused') {
-            // A job was active. Any move to a terminal state ends it.
-            if (currentState === 'complete') {
-              terminalStatus = 'complete';
-            } else if (currentState === 'cancelled') {
-              terminalStatus = 'cancelled';
-            } else if (currentState === 'error') {
-              terminalStatus = 'error';
-            } else if (currentState === 'standby') {
-              if (prevState === 'paused') {
-                // Cancelled while paused
-                terminalStatus = 'cancelled';
-              } else {
-                // printing → standby can mean:
-                //   (a) Natural finish on firmware without explicit 'complete' state (Duet, etc.)
-                //   (b) Klipper FIRMWARE_RESTART / hard crash
-                //
-                // Klipper resets print_stats on restart: filename → "" AND duration → 0.
-                // A natural finish leaves filename intact with duration > 0.
-                const durationAfter = status.print_stats?.total_duration
-                  || status.print_stats?.print_duration || 0;
-                if (durationAfter === 0 && !currentFilename) {
-                  terminalStatus = 'error'; // firmware restart or hard crash
-                } else {
-                  terminalStatus = 'complete'; // natural finish (Duet, etc.)
-                }
-              }
-            }
-          } else if (prevState === 'cancelling') {
-            if (currentState === 'standby') {
-              terminalStatus = 'cancelled';
-            } else if (currentState === 'error') {
-              terminalStatus = 'error';
-            }
-          }
+          const durationAfter = status.print_stats?.total_duration
+            || status.print_stats?.print_duration || 0;
+          const terminalStatus = detectTerminalStatus(prevState, currentState, {
+            durationAfter,
+            currentFilename,
+          });
 
           if (terminalStatus) {
             const duration = status.print_stats?.total_duration || status.print_stats?.print_duration || 0;
@@ -211,8 +131,8 @@ async function _pollAllInner() {
             const loggedFilename = prevStateObj.filename || currentFilename || 'Unknown';
 
             try {
-              // Check if this print was associated with a project plate
-              // Wrapped separately so a missing table never blocks job logging
+              // Check if this print was associated with a project plate.
+              // Wrapped separately so a missing table never blocks job logging.
               let activeJob = null;
               try {
                 activeJob = db.prepare(
@@ -220,37 +140,18 @@ async function _pollAllInner() {
                 ).get(printer.id, loggedFilename);
               } catch { /* table may not exist yet */ }
 
-              const result = db.prepare(`
-                INSERT INTO gcode_print_jobs
-                (printer_id, filename, total_duration_s, filament_used_mm, spool_id, spool_name, material, color_hex, vendor, status, plate_id)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-              `).run(
-                printer.id,
-                loggedFilename,
-                Math.round(duration),
-                filamentUsed,
-                spoolUsed?.id || null,
-                spoolUsed?.filament_name || null,
-                spoolUsed?.material || null,
-                spoolUsed?.color_hex || null,
-                spoolUsed?.vendor || null,
-                terminalStatus,
-                activeJob?.plate_id || null
-              );
+              logJob(db, {
+                printerId: printer.id,
+                filename: loggedFilename,
+                durationS: duration,
+                filamentUsedMm: filamentUsed,
+                spool: spoolUsed,
+                status: terminalStatus,
+                plateId: activeJob?.plate_id || null,
+              });
 
-              // Always clear the active job record (prevents stale entries from triggering false startup recovery)
+              // Always clear the active job record (prevents stale entries triggering false startup recovery)
               db.prepare('DELETE FROM printer_active_jobs WHERE printer_id = ?').run(printer.id);
-
-              // If linked to a project plate, update its status
-              if (activeJob?.plate_id) {
-                db.prepare(
-                  `UPDATE project_plates SET status = ?, print_job_id = ?, completed_at = datetime('now') WHERE id = ?`
-                ).run(
-                  terminalStatus === 'complete' ? 'done' : terminalStatus === 'cancelled' ? 'pending' : 'failed',
-                  result.lastInsertRowid,
-                  activeJob.plate_id
-                );
-              }
 
               console.log(`[Poller] Logged print job (${terminalStatus}): "${loggedFilename}" on Printer ${printer.id}`);
               if (duration > 0) {
@@ -312,10 +213,4 @@ function stopPolling() {
   }
 }
 
-/** Evict a spool from the cache (call when set-active changes the active spool) */
-function clearSpoolCache(spoolId, printerId) {
-  if (spoolId != null) spoolCache.delete(spoolId);
-  if (printerId != null) activeSpoolIdCache.delete(printerId);
-}
-
-module.exports = { startPolling, stopPolling, pollAll, clearSpoolCache };
+module.exports = { startPolling, stopPolling, pollAll };

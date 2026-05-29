@@ -58,32 +58,42 @@ frontend/src/
 
 backend/src/
 ├── index.js                Entry point: DB init → Express listen → start poller + backup scheduler
-├── app.js                  Express app: CORS, body-parser, route mounting (20+ routers)
+├── app.js                  Express app: CORS, body-parser, core routes + feature auto-loader
 ├── db/                     SQLite schema, migrations (001–040), connection singleton
-├── routes/
+├── routes/                 Core routes — always mounted, no feature flag
 │   ├── printers.js         CRUD printers + scrape-theme endpoint
 │   ├── control.js          Moonraker proxy: print start/pause/resume/cancel/gcode
 │   ├── status.js           Cached printer status (from poller)
 │   ├── files.js            G-code upload/list/delete + send-to-printer
 │   ├── folders.js          File folder CRUD
-│   ├── templates.js        Print templates CRUD + plate/filament management
-│   ├── projects.js         Projects CRUD + plate/filament/template-instance management
 │   ├── queue.js            Per-printer print queue management
-│   ├── presets.js          Temperature presets CRUD
-│   ├── themes.js           Community theme git clone/list/delete
 │   ├── settings.js         GET/PUT flat key-value settings store
-│   ├── stats.js            Fleet + per-file print statistics
-│   ├── spoolman.js         Spoolman proxy + LAN IP + services status
-│   ├── maintenance.js      Maintenance tasks, intervals, history, mark-done
-│   ├── extras.js           POST /api/extras/swatch → generates STL via Python/CadQuery
-│   ├── backup.js           Scheduled backup status/run/delete
-│   ├── database.js         DB export/import (download/upload marathon.db)
-│   ├── mcp.js              MCP tool registration + context endpoint
 │   ├── setup.js            First-run setup wizard state
-│   ├── updates.js          Docker image pull + restart
 │   └── octoprint.js        OctoPrint-compatible stub (/api/version, /api/printer)
+├── features/               Pluggable feature modules — each is a self-contained folder
+│   ├── index.js            Auto-loader: scans subdirs, mounts enabled features
+│   ├── spoolman/           { feature.json, routes.js }
+│   ├── maintenance/        { feature.json, routes.js }
+│   ├── stats/              { feature.json, routes.js }
+│   ├── templates/          { feature.json, routes.js }
+│   ├── projects/           { feature.json, routes.js }
+│   ├── themes/             { feature.json, routes.js }
+│   ├── presets/            { feature.json, routes.js }
+│   ├── extras/             { feature.json, routes.js }  — swatch STL generator
+│   ├── backup/             { feature.json, routes.js }
+│   ├── updates/            { feature.json, routes.js }  — Docker image pull + restart
+│   ├── database/           { feature.json, routes.js }  — DB export/import
+│   └── mcp/                { feature.json, routes.js }  — MCP server management
 ├── services/
 │   ├── poller.js           Status polling loop (3s); logs print jobs + accumulates runtime_s
+│   ├── jobLogger.js        Shared print-job terminal-state detection + DB write (used by poller + bambuManager)
+│   ├── PrinterClient.js    Abstract base class for firmware clients (extend to add new firmware)
+│   ├── clientFactory.js    Returns the right client subclass for a printer's firmware_type
+│   ├── moonraker.js        Klipper/Moonraker client (extends PrinterClient)
+│   ├── octoprint.js        OctoPrint client (extends PrinterClient)
+│   ├── duet.js             Duet/RepRapFirmware client (extends PrinterClient)
+│   ├── bambu.js            BambuLab MQTT client (extends PrinterClient)
+│   ├── bambuManager.js     Persistent MQTT connection manager for Bambu printers
 │   ├── backup.js           Scheduled backup (60s tick); Marathon DB + Spoolman via docker cp
 │   └── swatch_generator.py Python/CadQuery script: loads swatch.step, debosses text, exports STL
 ├── swatch.step             STEP file for the swatch base shape (Autodesk, mm, Z-up)

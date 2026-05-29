@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useFiles } from '../hooks/useFiles';
 import { useFolders } from '../hooks/useFolders';
 import FileList from '../components/files/FileList';
@@ -6,11 +7,42 @@ import FolderCard from '../components/files/FolderCard';
 import ViewToggle from '../components/common/ViewToggle';
 
 export default function FilesPage() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const { files, loading: filesLoading, error: filesError, refresh: refreshFiles } = useFiles();
   const { folders, loading: foldersLoading, error: foldersError, refresh: refreshFolders, createFolder, renameFolder, deleteFolder, moveFile, moveFolder } = useFolders();
 
   const [currentFolderId, setCurrentFolderId] = useState(null);
   const [breadcrumb, setBreadcrumb] = useState([{ id: null, name: 'Root' }]);
+  const [highlightedFileId, setHighlightedFileId] = useState(null);
+
+  // Fires whenever location.state changes (works both on fresh mount AND when already
+  // on this page and search navigates here again). Waits for folders to be ready.
+  useEffect(() => {
+    const state = location.state;
+    if (!state?.fileId || foldersLoading) return;
+
+    // Consume the state so re-renders don't re-trigger this
+    navigate('/files', { replace: true, state: null });
+
+    // Walk parent chain to build full breadcrumb
+    const targetFolderId = state.folderId ?? null;
+    const crumbs = [{ id: null, name: 'Root' }];
+    if (targetFolderId !== null) {
+      const path = [];
+      let cur = folders.find(f => f.id === targetFolderId);
+      while (cur) {
+        path.unshift({ id: cur.id, name: cur.name });
+        cur = folders.find(f => f.id === cur.parent_id);
+      }
+      crumbs.push(...path);
+    }
+
+    setCurrentFolderId(targetFolderId);
+    setBreadcrumb(crumbs);
+    setHighlightedFileId(state.fileId);
+    setTimeout(() => setHighlightedFileId(null), 3000);
+  }, [location.state, folders, foldersLoading]);
 
   const [viewMode, setViewMode] = useState(() => localStorage.getItem('marathon_file_view') || 'list');
 
@@ -183,7 +215,7 @@ export default function FilesPage() {
             )}
 
             {/* Files List */}
-            <FileList files={currentFiles} onDeleted={() => { refreshFiles(); refreshFolders(); }} viewMode={viewMode} />
+            <FileList files={currentFiles} onDeleted={() => { refreshFiles(); refreshFolders(); }} viewMode={viewMode} highlightedFileId={highlightedFileId} />
 
             {currentFolders.length === 0 && currentFiles.length === 0 && (
               <p className="empty-state">This folder is empty.</p>

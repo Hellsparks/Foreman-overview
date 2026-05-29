@@ -23,6 +23,8 @@
     --success: #16a34a;
     --offline: #9ca3af;
     --shadow: 0 2px 8px rgba(0, 0, 0, .08);
+    color-scheme: light;
+    scrollbar-color: var(--border) var(--bg);
 }
 
 [data-theme="light"] .navbar,
@@ -186,6 +188,8 @@
     --success:   #2d6f1f;
     --offline:   #aaaaaa;
     --shadow:    0 2px 8px rgba(0, 0, 0, .06);
+    color-scheme: light;
+    scrollbar-color: var(--border) var(--bg);
 }
 
 [data-theme="mono"] .navbar,

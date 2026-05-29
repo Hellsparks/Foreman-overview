@@ -1,58 +1,47 @@
 const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
+const path = require('path');
 
+// Core routes — always mounted, no feature flag
 const printersRouter = require('./routes/printers');
 const filesRouter = require('./routes/files');
 const statusRouter = require('./routes/status');
 const queueRouter = require('./routes/queue');
 const controlRouter = require('./routes/control');
 const octoprintRouter = require('./routes/octoprint');
-const presetsRouter = require('./routes/presets');
-const themesRouter = require('./routes/themes');
 const settingsRouter = require('./routes/settings');
-const spoolmanRouter = require('./routes/spoolman');
-const maintenanceRouter = require('./routes/maintenance');
 const foldersRouter = require('./routes/folders');
-const templatesRouter = require('./routes/templates');
-const projectsRouter = require('./routes/projects');
-const updatesRouter = require('./routes/updates');
-const statsRouter = require('./routes/stats');
-const extrasRouter = require('./routes/extras');
-const databaseRouter = require('./routes/database');
-const backupRouter = require('./routes/backup');
-const mcpRouter = require('./routes/mcp');
 const setupRouter = require('./routes/setup');
 const errorHandler = require('./middleware/errorHandler');
 
-const path = require('path');
+// Pluggable features — auto-loaded from features/ subfolders.
+// To disable a feature: set "enabled": false in its feature.json.
+// To add a feature: drop a new folder in features/ with routes.js + feature.json.
+const { loadFeatures } = require('./features');
 
 const app = express();
 
 app.use(cors({ origin: process.env.CORS_ORIGIN || true }));
 app.use(express.json({ limit: '10mb' }));
 
-// Application routes
+// Core routes
 app.use('/api/printers', printersRouter);
 app.use('/api/files', filesRouter);
 app.use('/api/folders', foldersRouter);
-app.use('/api/templates', templatesRouter);
-app.use('/api/projects', projectsRouter);
 app.use('/api/status', statusRouter);
-app.use('/api/printers', queueRouter);   // /api/printers/:id/queue
-app.use('/api/printers', controlRouter); // /api/printers/:id/print/*
-app.use('/api/presets', presetsRouter);
-app.use('/api/themes', themesRouter);
+// queue and control share the /api/printers prefix (they own /:id/queue and /:id/print/*).
+// All three routers use distinct path prefixes so there is no collision risk,
+// but if you add a route to either file, confirm it doesn't shadow printers.js.
+app.use('/api/printers', queueRouter);
+app.use('/api/printers', controlRouter);
 app.use('/api/settings', settingsRouter);
-app.use('/api/spoolman', spoolmanRouter);
-app.use('/api/maintenance', maintenanceRouter);
-app.use('/api/updates', updatesRouter);
-app.use('/api/stats', statsRouter);
-app.use('/api/extras', extrasRouter);
-app.use('/api/database', databaseRouter);
-app.use('/api/backup', backupRouter);
-app.use('/api/mcp', mcpRouter);
 app.use('/api/setup', setupRouter);
+
+// Feature routes (from features/ auto-loader)
+for (const feature of loadFeatures()) {
+  app.use(feature.mountPath, feature.router);
+}
 
 // Statically serve cloned Community Themes — dotfiles: 'allow' exposes .theme/ subdirectories
 app.use('/themes', express.static(path.join(__dirname, '../data/themes'), { dotfiles: 'allow' }));

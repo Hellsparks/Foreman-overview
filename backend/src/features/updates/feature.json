@@ -1,0 +1,5 @@
+{
+  "id": "updates",
+  "mountPath": "/api/updates",
+  "enabled": true
+}

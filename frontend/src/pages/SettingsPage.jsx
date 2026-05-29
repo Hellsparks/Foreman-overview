@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { usePrinters } from '../hooks/usePrinters';
 import PrinterList from '../components/printers/PrinterList';
 import PresetList from '../components/printers/PresetList';
@@ -17,21 +17,18 @@ import CurrencyConvertDialog from '../components/spoolman/CurrencyConvertDialog'
 import OrcaSlicerDefaultsDialog from '../components/spoolman/OrcaSlicerDefaultsDialog';
 import JSZip from 'jszip';
 
-function Section({ title, defaultOpen = true, children }) {
-  const [open, setOpen] = useState(defaultOpen);
+function Section({ slug, activeSection, children }) {
+  if (activeSection !== slug) return null;
   return (
     <section className="settings-section">
-      <button className="settings-section-toggle" onClick={() => setOpen(o => !o)}>
-        <h2 className="settings-section-title">{title}</h2>
-        <span className={`settings-section-chevron${open ? ' open' : ''}`}>&#9654;</span>
-      </button>
-      {open && <div className="settings-section-body">{children}</div>}
+      <div className="settings-section-body">{children}</div>
     </section>
   );
 }
 
 export default function SettingsPage() {
   const navigate = useNavigate();
+  const { section = 'printers' } = useParams();
   const { printers, loading, error, refresh } = usePrinters();
   const [spoolmanUrl, setSpoolmanUrl] = useState('');
   const [spoolmanSaved, setSpoolmanSaved] = useState('');
@@ -119,6 +116,10 @@ export default function SettingsPage() {
   const [spoolmanBackupKeep, setSpoolmanBackupKeep] = useState('7');
   const [backupRunning, setBackupRunning] = useState(null); // 'marathon'|'spoolman'|'all'|null
   const [backupMsg, setBackupMsg] = useState(null); // { text, ok }
+
+  // Restart backend
+  const [restartBusy, setRestartBusy] = useState(false);
+  const [restartDone, setRestartDone] = useState(false);
 
   // Marathon backend port
   const [backendPort, setBackendPort] = useState('');
@@ -817,7 +818,7 @@ export default function SettingsPage() {
       <h1 className="page-title">Settings</h1>
 
       {/* ════════════════════ 1. Printers ════════════════════ */}
-      <Section title="Printers" defaultOpen={true}>
+      <Section slug="printers" activeSection={section}>
         {loading ? (
           <div className="loading">Loading…</div>
         ) : error ? (
@@ -833,7 +834,7 @@ export default function SettingsPage() {
       </Section>
 
       {/* ════════════════════ 2. Connections ════════════════════ */}
-      <Section title="Connections" defaultOpen={true}>
+      <Section slug="connections" activeSection={section}>
         <div className="settings-2col">
           {/* Spoolman URL */}
           <div className="settings-card">
@@ -943,7 +944,7 @@ export default function SettingsPage() {
       </Section>
 
       {/* ════════════════════ 3. Spoolman ════════════════════ */}
-      <Section title="Spoolman" defaultOpen={false}>
+      <Section slug="spoolman" activeSection={section}>
         {/* Storage Location */}
         <div className="settings-card">
           <h3 className="settings-card-title">Storage Location</h3>
@@ -1085,7 +1086,7 @@ export default function SettingsPage() {
       </Section>
 
       {/* ════════════════════ 4. Scale ════════════════════ */}
-      <Section title="Scale" defaultOpen={false}>
+      <Section slug="scale" activeSection={section}>
         <div className="settings-card">
           <h3 className="settings-card-title">Teamster Live Weight</h3>
           <p className="settings-card-desc">Live readout, tare, and calibration controls for the Teamster load cell.</p>
@@ -1131,7 +1132,7 @@ export default function SettingsPage() {
       </Section>
 
       {/* ════════════════════ 5. Projects ════════════════════ */}
-      <Section title="Projects" defaultOpen={false}>
+      <Section slug="projects" activeSection={section}>
         <div className="settings-card">
           <h3 className="settings-card-title">Deadline Warning Threshold</h3>
           <p className="settings-card-desc">
@@ -1157,7 +1158,7 @@ export default function SettingsPage() {
       </Section>
 
       {/* ════════════════════ 6. Backup & Restore ════════════════════ */}
-      <Section title="Backup & Restore" defaultOpen={false}>
+      <Section slug="backup" activeSection={section}>
         <div className="settings-card">
           <h3 className="settings-card-title">Foreman Database</h3>
           <p className="settings-card-desc">Export or restore the entire Foreman database — printers, print history, maintenance, settings, and more.</p>
@@ -1476,7 +1477,7 @@ export default function SettingsPage() {
       </Section>
 
       {/* ════════════════════ 7. Integrations ════════════════════ */}
-      <Section title="Integrations" defaultOpen={false}>
+      <Section slug="integrations" activeSection={section}>
         <div className="settings-card">
           <h3 className="settings-card-title">MCP Server</h3>
           <p className="settings-card-desc">
@@ -1569,7 +1570,7 @@ export default function SettingsPage() {
       </Section>
 
       {/* ════════════════════ 7. GitHub Integration ════════════════════ */}
-      <Section title="GitHub Integration" defaultOpen={false}>
+      <Section slug="github" activeSection={section}>
         <div className="settings-card">
           <h3 className="settings-card-title">Bug Reporting</h3>
           <p className="settings-card-desc">GitHub PAT for one-click bug reporting from the navbar.</p>
@@ -1600,7 +1601,7 @@ export default function SettingsPage() {
       </Section>
 
       {/* ════════════════════ 8. Setup ════════════════════ */}
-      <Section title="Setup" defaultOpen={false}>
+      <Section slug="setup" activeSection={section}>
         <div className="settings-card">
           <h3 className="settings-card-title">Setup Wizard</h3>
           <p style={{ fontSize: '13px', opacity: 0.7, margin: '0 0 10px' }}>
@@ -1616,9 +1617,44 @@ export default function SettingsPage() {
             Run Setup Wizard
           </button>
         </div>
+
+        <div className="settings-card">
+          <h3 className="settings-card-title">Restart Backend</h3>
+          <p style={{ fontSize: '13px', opacity: 0.7, margin: '0 0 10px' }}>
+            Gracefully restarts the backend process. Useful after config changes or applying migrations.
+            The page will prompt you to reload once the server is back up.
+          </p>
+          {restartDone ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Backend restarting…</span>
+              <button
+                className="btn btn-sm btn-primary"
+                onClick={() => window.location.reload()}
+              >
+                Reload Page
+              </button>
+            </div>
+          ) : (
+            <button
+              className="btn btn-sm btn-danger"
+              disabled={restartBusy}
+              onClick={async () => {
+                if (!confirm('Restart the backend now? Active prints will not be affected.')) return;
+                setRestartBusy(true);
+                try {
+                  await fetch('/api/settings/restart', { method: 'POST' });
+                } catch { /* expected — connection drops as backend exits */ }
+                setRestartBusy(false);
+                setRestartDone(true);
+              }}
+            >
+              {restartBusy ? 'Restarting…' : 'Restart Backend'}
+            </button>
+          )}
+        </div>
       </Section>
 
-      <Section title="Updates" defaultOpen={false}>
+      <Section slug="updates" activeSection={section}>
         <div className="settings-card">
           <h3 className="settings-card-title">About &amp; Updates</h3>
 

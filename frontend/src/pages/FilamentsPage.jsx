@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { getFilaments, deleteFilament, getFields } from '../api/spoolman';
 import { getSettings } from '../api/settings';
 import AddFilamentDialog from '../components/spoolman/AddFilamentDialog';
@@ -33,6 +34,19 @@ function toAbsUrl(url) {
 }
 
 export default function FilamentsPage() {
+    const location = useLocation();
+    const navigate = useNavigate();
+    const [highlightedFilamentId, setHighlightedFilamentId] = useState(null);
+    const highlightRef = useCallback((node) => {
+        if (node) node.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, [highlightedFilamentId]);
+    useEffect(() => {
+        const state = location.state;
+        if (!state?.filamentId) return;
+        navigate('/spoolman/filaments', { replace: true, state: null });
+        setHighlightedFilamentId(state.filamentId);
+        setTimeout(() => setHighlightedFilamentId(null), 3000);
+    }, [location.state]);
     const [filaments, setFilaments] = useState([]);
     const [extraFields, setExtraFields] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -301,8 +315,9 @@ export default function FilamentsPage() {
                             <tbody>
                                 {filtered.map(f => {
                                     const ralMatch = f.color_hex ? findClosestRal(f.color_hex) : null;
+                                    const isHighlighted = f.id === highlightedFilamentId;
                                     return (
-                                        <tr key={f.id} className="sm-catalogue-row" style={{ backgroundColor: 'var(--surface)' }}>
+                                        <tr key={f.id} ref={isHighlighted ? highlightRef : null} className="sm-catalogue-row" style={isHighlighted ? { background: 'color-mix(in srgb, var(--primary) 12%, transparent)', outline: '1px solid color-mix(in srgb, var(--primary) 35%, transparent)', outlineOffset: '-1px', transition: 'background 1s, outline 1s' } : { backgroundColor: 'var(--surface)' }}>
                                             <td>
                                                 <div className="sm-filament-dot" style={buildColorStyle(f)} />
                                             </td>
@@ -372,8 +387,9 @@ export default function FilamentsPage() {
                     }}>
                         {filtered.map(f => {
                             const ralMatch = f.color_hex ? findClosestRal(f.color_hex) : null;
+                            const isHighlighted = f.id === highlightedFilamentId;
                             return (
-                                <div key={f.id} className="spoolman-spool-card" style={{ backgroundColor: 'var(--surface)' }}>
+                                <div key={f.id} ref={isHighlighted ? highlightRef : null} className="spoolman-spool-card" style={{ backgroundColor: 'var(--surface)', ...(isHighlighted ? { borderColor: 'var(--primary)', boxShadow: '0 0 0 3px color-mix(in srgb, var(--primary) 25%, transparent)', transition: 'border-color 1s, box-shadow 1s' } : {}) }}>
                                     <div className="spool-card-header">
                                         <div className="spool-color-circle" style={buildColorStyle(f)} />
                                         <div className="spool-card-info">

@@ -1,7 +1,7 @@
-const express = require('express');
+﻿const express = require('express');
 const https = require('https');
 const { execSync, exec } = require('child_process');
-const { getDb } = require('../db');
+const { getDb } = require('../../db');
 
 const router = express.Router();
 
@@ -36,7 +36,7 @@ function getUpdateChannel() {
 }
 
 function getCurrentVersion() {
-  return process.env.APP_VERSION || require('../../../package.json').version;
+  return process.env.APP_VERSION || require('../../../../package.json').version;
 }
 
 const IS_DOCKER = process.env.MARATHON_DEPLOY_MODE === 'docker';
@@ -171,7 +171,7 @@ router.put('/channel', (req, res) => {
   res.json({ channel });
 });
 
-// GET /api/updates/check — works for both channels
+// GET /api/updates/check â€” works for both channels
 router.get('/check', async (req, res) => {
   try {
     const channel = getUpdateChannel();
@@ -228,7 +228,7 @@ router.get('/check', async (req, res) => {
   }
 });
 
-// GET /api/updates/releases — list all releases for picker
+// GET /api/updates/releases â€” list all releases for picker
 router.get('/releases', async (req, res) => {
   try {
     const now = Date.now();
@@ -250,7 +250,7 @@ router.get('/releases', async (req, res) => {
   }
 });
 
-// GET /api/updates/dev-commits — recent commits on dev branch
+// GET /api/updates/dev-commits â€” recent commits on dev branch
 router.get('/dev-commits', async (req, res) => {
   try {
     const now = Date.now();
@@ -298,7 +298,7 @@ router.post('/apply', (req, res) => {
   }
 });
 
-// POST /api/updates/pull-restart — simple git pull + restart for dev channel
+// POST /api/updates/pull-restart â€” simple git pull + restart for dev channel
 router.post('/pull-restart', (req, res) => {
   if (applyRunning) {
     return res.status(409).json({ error: 'Update already in progress' });
@@ -330,7 +330,7 @@ function applyDockerUpdate() {
   exec(`git -C ${repoDir} pull origin ${DEV_BRANCH}`, { timeout: 60000 }, (pullErr, pullOut) => {
     if (pullErr) {
       logLine(`Git pull failed: ${pullErr.message}`);
-      // Continue anyway — rebuild whatever source is there
+      // Continue anyway â€” rebuild whatever source is there
     } else {
       logLine(pullOut.trim() || 'Already up to date.');
     }
@@ -348,7 +348,7 @@ function applyDockerUpdate() {
           return;
         }
         logLine(`Containers rebuilt (${version}). Backend restarting...`);
-        // Docker will restart this container — log cuts off here
+        // Docker will restart this container â€” log cuts off here
       });
   });
 }
@@ -402,8 +402,8 @@ function applyReleaseTagUpdate(tag) {
 
 function installAndRestart() {
   const path = require('path');
-  const backendDir = path.join(__dirname, '../../');
-  const frontendDir = path.join(__dirname, '../../../frontend');
+  const backendDir = path.join(__dirname, '../../../');
+  const frontendDir = path.join(__dirname, '../../../../frontend');
 
   logLine('Installing backend dependencies...');
   exec('npm ci --omit=dev', { cwd: backendDir, timeout: 120000 }, (err2, out2) => {
@@ -451,11 +451,11 @@ function selfRestart(backendDir) {
     const now = new Date();
     fs.utimesSync(entryPoint, now, now);
     // If nodemon is watching, it will detect the mtime change and restart.
-    // Give it a moment — if we're still alive after 3s, nodemon didn't restart us,
+    // Give it a moment â€” if we're still alive after 3s, nodemon didn't restart us,
     // so fall through to the spawn approach.
     logLine('Triggered file change for auto-restart watcher...');
     setTimeout(() => {
-      // Still alive — no watcher. Spawn replacement.
+      // Still alive â€” no watcher. Spawn replacement.
       logLine('No watcher detected, spawning replacement process...');
       spawnReplacement(backendDir, entryPoint);
     }, 3000);

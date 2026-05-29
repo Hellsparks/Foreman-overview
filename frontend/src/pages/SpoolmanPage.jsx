@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { usePrinters } from '../hooks/usePrinters';
 import { getSpools, setActiveSpool, useFilament, measureFilament, deleteSpool, getAmsSlots, getToolSlots, setToolSlot, getBambuWarnings, dismissBambuWarning, getStorageLocation, patchSpool, fetchTeamsterWeight, tareTeamster } from '../api/spoolman';
 import { getPrinterMmus } from '../api/printers';
@@ -66,6 +67,19 @@ export default function SpoolmanPage() {
     const { printers } = usePrinters();
     const { selected, setSelected } = useRightPanel() || {};
     const isMobile = useIsMobile();
+    const location = useLocation();
+    const navigate = useNavigate();
+    const [highlightedSpoolId, setHighlightedSpoolId] = useState(null);
+    const highlightRef = useCallback((node) => {
+        if (node) node.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, [highlightedSpoolId]);
+    useEffect(() => {
+        const state = location.state;
+        if (!state?.spoolId) return;
+        navigate('/spoolman', { replace: true, state: null });
+        setHighlightedSpoolId(state.spoolId);
+        setTimeout(() => setHighlightedSpoolId(null), 3000);
+    }, [location.state]);
     const [tapSelectedSpool, setTapSelectedSpool] = useState(null);
     // Mobile: which slot is being picked for — { printerId, type: 'single'|'tray'|'tool', trayId?, toolIndex? }
     const [pickingSlot, setPickingSlot] = useState(null);
@@ -884,15 +898,17 @@ export default function SpoolmanPage() {
                                         const pct = getSpoolPercentage(spool);
                                         const color = `#${f.color_hex || '888888'}`;
                                         const isSelected = selected?.data?.id === spool.id;
+                                        const isHighlighted = spool.id === highlightedSpoolId;
                                         return (
                                             <tr
                                                 key={spool.id}
-                                                style={{ cursor: 'pointer', backgroundColor: isSelected ? 'var(--surface2)' : tapSelectedSpool?.id === spool.id ? 'var(--primary-d)' : 'transparent' }}
+                                                ref={isHighlighted ? highlightRef : null}
+                                                style={isHighlighted ? { cursor: 'pointer', background: 'color-mix(in srgb, var(--primary) 12%, transparent)', outline: '1px solid color-mix(in srgb, var(--primary) 35%, transparent)', outlineOffset: '-1px', transition: 'background 1s, outline 1s' } : { cursor: 'pointer', backgroundColor: isSelected ? 'var(--surface2)' : tapSelectedSpool?.id === spool.id ? 'var(--primary-d)' : 'transparent' }}
                                                 onClick={() => { handleSpoolTap(spool); setSelected?.({ data: spool }); }}
                                                 draggable={!isMobile}
                                                 onDragStart={!isMobile ? e => onDragStart(e, spool) : undefined}
-                                                onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.backgroundColor = 'var(--surface2)'; }}
-                                                onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.backgroundColor = 'transparent'; }}
+                                                onMouseEnter={(e) => { if (!isSelected && !isHighlighted) e.currentTarget.style.backgroundColor = 'var(--surface2)'; }}
+                                                onMouseLeave={(e) => { if (!isSelected && !isHighlighted) e.currentTarget.style.backgroundColor = 'transparent'; }}
                                             >
                                                 <td style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)' }}>
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -933,14 +949,16 @@ export default function SpoolmanPage() {
                                     const f = spool.filament || {};
                                     const pct = getSpoolPercentage(spool);
                                     const color = `#${f.color_hex || '888888'}`;
+                                    const isHighlighted = spool.id === highlightedSpoolId;
                                     return (
                                         <div
                                             key={spool.id}
+                                            ref={isHighlighted ? highlightRef : null}
                                             className={`spoolman-spool-card${selected?.data?.id === spool.id ? ' spool-card-selected' : ''}${tapSelectedSpool?.id === spool.id ? ' spool-tap-selected' : ''}`}
                                             draggable={!isMobile}
                                             onDragStart={!isMobile ? e => onDragStart(e, spool) : undefined}
                                             onClick={() => { handleSpoolTap(spool); setSelected?.({ data: spool }); }}
-                                            style={{ backgroundColor: 'var(--surface)' }}
+                                            style={{ backgroundColor: 'var(--surface)', ...(isHighlighted ? { borderColor: 'var(--primary)', boxShadow: '0 0 0 3px color-mix(in srgb, var(--primary) 25%, transparent)', transition: 'border-color 1s, box-shadow 1s' } : {}) }}
                                         >
                                             <div className="spool-card-header">
                                                 <div className="spool-color-circle" style={buildColorStyle(f)} />

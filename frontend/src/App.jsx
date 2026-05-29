@@ -62,7 +62,8 @@ export default function App() {
               <Route path="printer/:printerId" element={<PrinterIframePage />} />
               <Route path="maintenance" element={<MaintenancePage />} />
               <Route path="history" element={<HistoryPage />} />
-              <Route path="settings" element={<SettingsPage />} />
+              <Route path="settings" element={<Navigate to="/settings/printers" replace />} />
+              <Route path="settings/:section" element={<SettingsPage />} />
               <Route path="extras" element={<ExtrasPage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>

@@ -1,6 +1,8 @@
 // OctoPrint REST API client — normalizes responses to Marathon's internal status shape.
 // Node.js 22+ has built-in fetch and FormData globals.
 
+const PrinterClient = require('./PrinterClient');
+
 /**
  * Map OctoPrint state strings to Marathon's normalized state vocabulary.
  * OctoPrint states: Operational, Printing, Pausing, Paused, Resuming,
@@ -30,8 +32,9 @@ function normalizeState(octoprintState) {
   }
 }
 
-class OctoPrintClient {
+class OctoPrintClient extends PrinterClient {
   constructor(printer) {
+    super(printer);
     this.baseUrl = `http://${printer.host}:${printer.port}`;
     this.apiKey = printer.api_key;
   }

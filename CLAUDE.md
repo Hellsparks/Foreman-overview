@@ -77,13 +77,18 @@ cd frontend && npm run test:visual:update   # regenerate screenshots
 ```
 backend/src/
 ├── index.js          Entry: DB init → listen → start poller + backup scheduler
-├── app.js            Route mounting (20+ routers)
+├── app.js            Core route mounting + feature auto-loader
 ├── db/migrations/    NNN_name.sql — auto-applied on startup
-├── routes/           One file per feature group
+├── routes/           Core routes (always on): printers, status, files, settings, etc.
+├── features/         Pluggable feature modules (auto-discovered)
+│   ├── index.js      Auto-loader: scans subdirs, mounts enabled features
+│   └── <name>/       Each feature: routes.js + feature.json
 ├── services/
-│   ├── poller.js     Printer status polling (setInterval, 3s)
-│   └── backup.js     Scheduled backup (setInterval, 60s tick)
-└── tests/routes/     Jest + Supertest tests
+│   ├── poller.js     Printer status polling (3s)
+│   ├── jobLogger.js  Shared print-job terminal-state detection + DB write
+│   ├── PrinterClient.js  Abstract base class — extend to add a new firmware type
+│   └── backup.js     Scheduled backup (60s tick)
+└── tests/            Jest + Supertest tests
 
 frontend/src/
 ├── pages/            One page component per route
@@ -94,10 +99,22 @@ frontend/src/
 
 ---
 
+## Adding a Pluggable Feature
+
+Drop a folder in `backend/src/features/<name>/` containing:
+- `feature.json` — `{ "id": "<name>", "mountPath": "/api/<name>", "enabled": true }`
+- `routes.js` — Express router (`module.exports = router`)
+
+The feature is auto-discovered and mounted on startup. To disable: set `"enabled": false` in `feature.json`. **No changes to `app.js` needed.**
+
+Use `require('../../db')` and `require('../../services/...')` (two levels up from the feature folder).
+
+---
+
 ## When Adding Features — Checklist
 
-- [ ] Migration SQL added if schema changes
-- [ ] Backend route + test added
+- [ ] Migration SQL added if schema changes (use `/add-migration`)
+- [ ] Backend feature folder added OR core route + test added
 - [ ] Frontend API wrapper updated
 - [ ] `/run-tests` passes
 - [ ] No hardcoded IPs, credentials, or local paths in code

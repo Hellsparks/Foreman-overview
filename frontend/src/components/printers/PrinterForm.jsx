@@ -240,7 +240,7 @@ export default function PrinterForm({ printer, onSaved, onCancel }) {
                   <option value="moonraker">Klipper (Moonraker)</option>
                   <option value="octoprint">OctoPrint</option>
                   <option value="duet">Duet / RepRapFirmware</option>
-                  <option value="bambu">Bambu Lab (LAN Developer Mode)</option>
+                  <option value="bambu">Bambu Lab (LAN)</option>
                 </select>
               </label>
 
@@ -327,7 +327,7 @@ export default function PrinterForm({ printer, onSaved, onCancel }) {
                 <p className="text-muted" style={{ fontSize: '12px', marginTop: '4px' }}>
                   {form.firmware_type === 'octoprint' && 'Job queue, Klipper macros, and Spoolman are not available for OctoPrint printers.'}
                   {form.firmware_type === 'duet' && 'Job queue, Klipper macros, and Spoolman are not available for Duet printers.'}
-                  {form.firmware_type === 'bambu' && 'Connects via MQTT (LAN Developer Mode). Enable it in the printer\'s settings under Network → LAN Only Mode. Job queue, macros, file push, and Spoolman are not available. Pause/resume/cancel are supported.'}
+                  {form.firmware_type === 'bambu' && 'Connects via MQTT on your local network. Developer mode is not required — just the serial number and LAN access code from the printer screen. Pause/resume/cancel, temperatures, lights, and AMS are supported. Job queue, macros, file push, Spoolman, and webcam streaming are not available.'}
                 </p>
               )}
             </>

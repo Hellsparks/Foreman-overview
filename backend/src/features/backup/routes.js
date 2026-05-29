@@ -1,8 +1,8 @@
-const express = require('express');
+﻿const express = require('express');
 const fs = require('fs');
 const path = require('path');
-const { backupMarathon, backupSpoolman, getBackupDirs, isSmbPath, DEFAULT_BACKUP_DIR } = require('../services/backup');
-const { getDb } = require('../db');
+const { backupMarathon, backupSpoolman, getBackupDirs, isSmbPath, DEFAULT_BACKUP_DIR } = require('../../services/backup');
+const { getDb } = require('../../db');
 
 const router = express.Router();
 
@@ -69,7 +69,7 @@ router.get('/status', (_req, res) => {
     });
 });
 
-// POST /api/backup/run — manual trigger
+// POST /api/backup/run â€” manual trigger
 // body: { target: 'marathon' | 'spoolman' | 'all' }
 router.post('/run', async (req, res) => {
     const { target = 'all' } = req.body;
@@ -88,8 +88,8 @@ router.post('/run', async (req, res) => {
     res.json({ ok: true });
 });
 
-// DELETE /api/backup/:filename — delete backup file from all configured dirs
-// Infers subfolder from filename prefix (marathon-* → marathon/, spoolman-* → spoolman/)
+// DELETE /api/backup/:filename â€” delete backup file from all configured dirs
+// Infers subfolder from filename prefix (marathon-* â†’ marathon/, spoolman-* â†’ spoolman/)
 router.delete('/:filename', (req, res) => {
     const { filename } = req.params;
     if (filename.includes('/') || filename.includes('\\') || filename.includes('..')) {

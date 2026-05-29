@@ -1,0 +1,5 @@
+{
+  "id": "maintenance",
+  "mountPath": "/api/maintenance",
+  "enabled": true
+}

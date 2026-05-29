@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { deleteFile } from '../../api/files';
 import ConfirmDialog from '../common/ConfirmDialog';
 import SendToPrinterModal from './SendToPrinterModal';
@@ -14,11 +14,15 @@ function formatDate(iso) {
   return new Date(iso).toLocaleString();
 }
 
-export default function FileList({ files, onDeleted, viewMode = 'list' }) {
+export default function FileList({ files, onDeleted, viewMode = 'list', highlightedFileId = null }) {
   const [deletingId, setDeletingId] = useState(null);
   const [sendingFile, setSendingFile] = useState(null);
   const [fileStats, setFileStats] = useState({});
   const { selected, setSelected } = useRightPanel() || {};
+
+  const highlightRef = useCallback((node) => {
+    if (node) node.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [highlightedFileId]);
 
   function selectFile(file) {
     setSelected?.({ file, stats: fileStats[file.display_name] || null });
@@ -85,11 +89,14 @@ export default function FileList({ files, onDeleted, viewMode = 'list' }) {
                   : file.max_z != null
                     ? `H: ${(file.max_z - (file.min_z || 0)).toFixed(1)}mm`
                     : null;
+                const isHighlighted = file.id === highlightedFileId;
                 return (
                   <tr
                     key={file.id}
+                    ref={isHighlighted ? highlightRef : null}
                     onClick={() => selectFile(file)}
                     className={`file-row-clickable${selected?.file?.id === file.id ? ' file-row-selected' : ''}`}
+                    style={isHighlighted ? { background: 'color-mix(in srgb, var(--primary) 12%, transparent)', outline: '1px solid color-mix(in srgb, var(--primary) 35%, transparent)', outlineOffset: '-1px', transition: 'background 1s, outline 1s' } : undefined}
                     draggable="true"
                     onDragStart={(e) => {
                       const data = { type: 'file', id: file.id };
@@ -161,10 +168,14 @@ export default function FileList({ files, onDeleted, viewMode = 'list' }) {
         </div>
       ) : (
         <div className={`file-grid ${viewMode === 'grid-small' ? 'small' : 'large'}`}>
-          {files.map(file => (
+          {files.map(file => {
+            const isHighlighted = file.id === highlightedFileId;
+            return (
             <div
+              ref={isHighlighted ? highlightRef : null}
               className={`file-card${selected?.file?.id === file.id ? ' file-card-selected' : ''}`}
               key={file.id}
+              style={isHighlighted ? { borderColor: 'var(--primary)', boxShadow: '0 0 0 3px color-mix(in srgb, var(--primary) 25%, transparent)', transition: 'border-color 1s, box-shadow 1s' } : undefined}
               onClick={() => selectFile(file)}
               draggable="true"
               onDragStart={(e) => {
@@ -204,7 +215,8 @@ export default function FileList({ files, onDeleted, viewMode = 'list' }) {
                 <button className="btn btn-sm btn-outline btn-danger" onClick={() => setDeletingId(file.id)}>Delete</button>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

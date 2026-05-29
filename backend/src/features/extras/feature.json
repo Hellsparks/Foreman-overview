@@ -1,0 +1,5 @@
+{
+  "id": "extras",
+  "mountPath": "/api/extras",
+  "enabled": true
+}

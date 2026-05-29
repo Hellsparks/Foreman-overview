@@ -1,7 +1,7 @@
 /* ─── Global Scrollbar ────────────────────────────────────────── */
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
@@ -9,13 +9,13 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--surface2);
+  background: var(--border);
   border-radius: 10px;
   border: 2px solid var(--bg);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--border);
+  background: var(--text-muted);
 }
 
 /* ─── Reset & Base ─────────────────────────────────────────────── */
@@ -42,6 +42,9 @@
   --offline: #555d6e;
   --radius: 8px;
   --shadow: 0 2px 8px rgba(0, 0, 0, .4);
+  color-scheme: dark;
+  scrollbar-color: var(--border) var(--bg);
+  scrollbar-width: thin;
 }
 
 body {
@@ -1367,6 +1370,8 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   margin-bottom: 12px;
+  overflow-wrap: break-word;
+  min-width: 0;
 }
 
 .settings-card:last-child {
@@ -1439,8 +1444,13 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 
 .settings-2col {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 12px;
+  margin-bottom: 12px;
+}
+
+.settings-2col > .settings-card {
+  margin-bottom: 0;
 }
 
 @media (max-width: 700px) {

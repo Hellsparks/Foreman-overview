@@ -1,4 +1,5 @@
 // Duet Web Control (DWC3 / RepRapFirmware 3) API client.
+const PrinterClient = require('./PrinterClient');
 // Normalizes responses to Marathon's internal status shape.
 // Node.js 22+ has built-in fetch globals.
 //
@@ -37,9 +38,9 @@ function normalizeState(rrfStatus) {
   }
 }
 
-class DuetClient {
+class DuetClient extends PrinterClient {
   constructor(printer) {
-    this.printer = printer;
+    super(printer);
     this.baseUrl = `http://${printer.host}:${printer.port}`;
     this.apiKey = printer.api_key; // treated as the DWC password
     this._cacheKey = `${printer.host}:${printer.port}`;

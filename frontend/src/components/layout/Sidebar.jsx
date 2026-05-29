@@ -34,23 +34,25 @@ const embeddedLinks = [
   { to: '/spoolman/inventory', label: 'Inventory', icon: null, end: true },
   { to: '/history', label: 'History', icon: '🕒', end: true },
   { to: '/maintenance', label: 'Maintenance', icon: '🔧', end: true },
-  { to: '/settings', label: 'Settings', icon: '⚙', end: true },
+  { to: '/settings/printers', label: 'Settings', icon: '⚙', end: false },
   { to: '/extras', label: 'Extras', icon: '✦', end: true },
 ];
 
 export default function Sidebar({ onNavigate }) {
   const { printers } = usePrinters();
-  const status = usePrinterStatus();
+  const { status } = usePrinterStatus();
 
   const matchRoot    = useMatch({ path: '/', end: true });
   const matchPrinter = useMatch({ path: '/printer/:id', end: false });
   const matchFiles   = useMatch({ path: '/files', end: false });
   const matchSpoolman = useMatch({ path: '/spoolman', end: false });
+  const matchSettings = useMatch({ path: '/settings', end: false });
 
   const onDashboardExact = !!matchRoot;
   const onDashboard = !!(matchRoot || matchPrinter);
   const onFiles = !!matchFiles;
   const onSpoolman = !!matchSpoolman;
+  const onSettings = !!matchSettings;
 
   const onlineCount = Object.values(status).filter(s => s?._online).length;
   const printerCount = printers.length;
@@ -231,10 +233,36 @@ export default function Sidebar({ onNavigate }) {
             <span className="sb-icon"><IconExtras size={16} /></span>
             <span className="sb-label">Extras</span>
           </NavLink>
-          <NavLink to="/settings" onClick={handleClick} className={({ isActive }) => `sb-item${isActive ? ' active' : ''}`}>
+          <NavLink to="/settings/printers" onClick={handleClick} className={() => `sb-item${onSettings ? ' active' : ''}`}>
             <span className="sb-icon"><IconSettings size={16} /></span>
             <span className="sb-label">Settings</span>
           </NavLink>
+          {onSettings && (
+            <div className="sb-sub">
+              {[
+                { to: '/settings/printers', label: 'Printers' },
+                { to: '/settings/connections', label: 'Connections' },
+                { to: '/settings/spoolman', label: 'Spoolman' },
+                { to: '/settings/scale', label: 'Scale' },
+                { to: '/settings/projects', label: 'Projects' },
+                { to: '/settings/backup', label: 'Backup & Restore' },
+                { to: '/settings/integrations', label: 'Integrations' },
+                { to: '/settings/github', label: 'GitHub' },
+                { to: '/settings/setup', label: 'Setup' },
+                { to: '/settings/updates', label: 'Updates' },
+              ].map(({ to, label }) => (
+                <NavLink
+                  key={to}
+                  to={to}
+                  className={({ isActive }) => `sb-subitem${isActive ? ' active' : ''}`}
+                  onClick={handleClick}
+                >
+                  <span className="sb-sub-dot"></span>
+                  {label}
+                </NavLink>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

@@ -1,0 +1,5 @@
+{
+  "id": "stats",
+  "mountPath": "/api/stats",
+  "enabled": true
+}

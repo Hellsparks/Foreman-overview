@@ -1,0 +1,5 @@
+{
+  "id": "mcp",
+  "mountPath": "/api/mcp",
+  "enabled": true
+}

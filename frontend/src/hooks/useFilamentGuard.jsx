@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { usePrinters } from './usePrinters';
-import { useStatus } from './useStatus';
+import { usePrinterStatus } from '../contexts/PrinterStatusContext';
 import { getBambuWarnings } from '../api/spoolman';
 import { normalizeFilamentType } from '../utils/materialUtils';
 
@@ -10,7 +10,7 @@ import { normalizeFilamentType } from '../utils/materialUtils';
  */
 export function useFilamentGuard({ onConfirm, onWeighSpool, onClearBambuWarning, onClearAndAssign }) {
     const { printers } = usePrinters();
-    const { status: statuses } = useStatus();
+    const { status: statuses } = usePrinterStatus();
     const [pendingAssignment, setPendingAssignment] = useState(null);
     const [bambuWarnings, setBambuWarnings] = useState([]);
     const [hasFetchedWarnings, setHasFetchedWarnings] = useState(false);

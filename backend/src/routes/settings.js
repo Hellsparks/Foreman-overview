@@ -26,4 +26,10 @@ router.put('/', (req, res) => {
     res.json({ ok: true, key, value });
 });
 
+// POST /api/settings/restart — gracefully restart the backend process
+router.post('/restart', (_req, res) => {
+    res.json({ ok: true });
+    setTimeout(() => process.exit(0), 300);
+});
+
 module.exports = router;

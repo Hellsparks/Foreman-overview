@@ -282,7 +282,7 @@ export default function InventoryPage() {
             {/* ── Search + View Toggle ───────────────────────────────── */}
             <div style={{ display: 'flex', gap: '8px', margin: '12px 0', alignItems: 'center' }}>
                 <div className="spoolman-search-wrap" style={{ flex: 1, position: 'relative' }} ref={filterRef}>
-                    <span className="spoolman-search-icon">🔍</span>
+                    <span className="spoolman-search-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></span>
                     <input
                         type="text"
                         className="input spoolman-search-input"
@@ -297,7 +297,7 @@ export default function InventoryPage() {
                         title="Filter"
                         style={{ position: 'absolute', right: '4px', top: '50%', transform: 'translateY(-50%)' }}
                     >
-                        {activeFilterCount > 0 ? `⚙ ${activeFilterCount}` : '⚙'}
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="21" y1="4" x2="14" y2="4"/><line x1="10" y1="4" x2="3" y2="4"/><line x1="21" y1="12" x2="12" y2="12"/><line x1="8" y1="12" x2="3" y2="12"/><line x1="21" y1="20" x2="16" y2="20"/><line x1="12" y1="20" x2="3" y2="20"/><line x1="14" y1="2" x2="14" y2="6"/><line x1="8" y1="10" x2="8" y2="14"/><line x1="16" y1="18" x2="16" y2="22"/></svg>{activeFilterCount > 0 && <span style={{ marginLeft: '3px', fontSize: '11px' }}>{activeFilterCount}</span>}
                     </button>
                     {showFilter && (
                         <div className="spoolman-filter-popover" style={{ position: 'absolute', top: '100%', right: 0, zIndex: 100 }}>
@@ -395,7 +395,7 @@ export default function InventoryPage() {
                                 <div style={{ marginTop: '8px', textAlign: 'right' }}>
                                     <button className="btn inv-storage-add-btn" title="Add to storage"
                                         onClick={() => setStorePrompt({ filamentId: f.id, filamentName: f.name, qty: 1 })}>
-                                        📦 Store
+                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '4px', verticalAlign: 'middle' }}><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 2 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.29 7 12 12 20.71 7"/><line x1="12" y1="22" x2="12" y2="12"/></svg>Store
                                     </button>
                                 </div>
                             </div>
@@ -460,7 +460,7 @@ export default function InventoryPage() {
                                             )}
                                             <button className="sm-action-btn" title="Add to storage"
                                                 onClick={() => setStorePrompt({ filamentId: f.id, filamentName: f.name, qty: 1 })}>
-                                                📦
+                                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 2 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.29 7 12 12 20.71 7"/><line x1="12" y1="22" x2="12" y2="12"/></svg>
                                             </button>
                                             <button className="sm-action-btn sm-action-danger"
                                                 onClick={() => handleRemove(f.id)} title="Stop tracking">✕</button>
@@ -540,7 +540,7 @@ export default function InventoryPage() {
                         <div>
                             <div style={{ display: 'flex', gap: '8px', margin: '12px 0', alignItems: 'center' }}>
                                 <div className="spoolman-search-wrap" style={{ flex: 1, position: 'relative' }} ref={storageFilterRef}>
-                                    <span className="spoolman-search-icon">🔍</span>
+                                    <span className="spoolman-search-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></span>
                                     <input
                                         type="text"
                                         className="input spoolman-search-input"
@@ -555,7 +555,7 @@ export default function InventoryPage() {
                                         title="Filter"
                                         style={{ position: 'absolute', right: '4px', top: '50%', transform: 'translateY(-50%)' }}
                                     >
-                                        {activeStorageFilterCount > 0 ? `⚙ ${activeStorageFilterCount}` : '⚙'}
+                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="21" y1="4" x2="14" y2="4"/><line x1="10" y1="4" x2="3" y2="4"/><line x1="21" y1="12" x2="12" y2="12"/><line x1="8" y1="12" x2="3" y2="12"/><line x1="21" y1="20" x2="16" y2="20"/><line x1="12" y1="20" x2="3" y2="20"/><line x1="14" y1="2" x2="14" y2="6"/><line x1="8" y1="10" x2="8" y2="14"/><line x1="16" y1="18" x2="16" y2="22"/></svg>{activeStorageFilterCount > 0 && <span style={{ marginLeft: '3px', fontSize: '11px' }}>{activeStorageFilterCount}</span>}
                                     </button>
                                     {showStorageFilter && (
                                         <div className="spoolman-filter-popover" style={{ position: 'absolute', top: '100%', right: 0, zIndex: 100 }}>
@@ -629,7 +629,7 @@ export default function InventoryPage() {
                                             </div>
                                             {showAlert && (
                                                 <span className="inv-storage-alert-badge" title="Active spool running low — storage available">
-                                                    ⚠ Low
+                                                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '3px', verticalAlign: 'middle' }}><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>Low
                                                 </span>
                                             )}
                                             <div className="inv-storage-actions">

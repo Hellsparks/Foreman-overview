@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { usePrinters } from '../../hooks/usePrinters';
-import { useStatus } from '../../hooks/useStatus';
+import { usePrinterStatus } from '../../contexts/PrinterStatusContext';
 import { sendFile } from '../../api/files';
 import { checkCompatibility } from '../../api/presets';
 import { getSpools, setActiveSpool } from '../../api/spoolman';
@@ -15,7 +15,7 @@ function hl(text, q) {
 
 export default function SendToPrinterModal({ file, onClose }) {
   const { printers } = usePrinters();
-  const { status: statuses } = useStatus();
+  const { status: statuses } = usePrinterStatus();
   const [printerId, setPrinterId] = useState('');
   const [action, setAction] = useState('upload');
   const [busy, setBusy] = useState(false);

@@ -1,0 +1,5 @@
+{
+  "id": "presets",
+  "mountPath": "/api/presets",
+  "enabled": true
+}

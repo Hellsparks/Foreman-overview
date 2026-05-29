@@ -1,18 +1,32 @@
 /**
- * BambuLab LAN Developer Mode — thin client class.
+ * BambuLab LAN client — thin client class.
+ *
+ * Connects via MQTT (port 8883) using the printer's serial number and LAN
+ * access code. Developer mode is not required for status or control.
+ * Developer mode is only needed for RTSPS webcam (port 322) and FTPS
+ * file upload (port 990), neither of which is implemented here.
  *
  * Status monitoring is handled entirely by bambuManager (MQTT subscriptions).
  * This class is used only by the control routes (pause/resume/cancel) and
  * as the clientFactory entry point for Bambu printers.
- *
- * File upload (FTPS on port 990) and print start are not yet implemented.
  */
 
 const bambuManager = require('./bambuManager');
+const PrinterClient = require('./PrinterClient');
 
-class BambuClient {
+class BambuClient extends PrinterClient {
   constructor(printer) {
-    this.printer = printer;
+    super(printer);
+  }
+
+  get capabilities() {
+    return {
+      hasQueue: false,
+      hasMacros: false,
+      hasAMS: true,
+      hasSpoolman: false,
+      hasWebcams: false,
+    };
   }
 
   /**
@@ -101,7 +115,7 @@ class BambuClient {
   }
 
   /**
-   * Webcam stream URL for Bambu printers in Developer Mode.
+   * Webcam stream URL — requires Developer Mode enabled on the printer.
    * Returns an rtsps:// URL. The frontend proxies this via the backend.
    */
   getWebcamUrl() {

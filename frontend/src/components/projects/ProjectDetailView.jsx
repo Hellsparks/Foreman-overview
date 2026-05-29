@@ -6,6 +6,8 @@ import { useRightPanel } from '../../contexts/RightPanelContext';
 import { usePrinterStatus } from '../../contexts/PrinterStatusContext';
 import { useFilamentGuard } from '../../hooks/useFilamentGuard';
 import { useToast } from '../../contexts/ToastContext';
+import { useFiles } from '../../hooks/useFiles';
+import { useFolders } from '../../hooks/useFolders';
 import StatusBadge from '../common/StatusBadge';
 
 function PrinterSelector({ printers, status, plate, selectedId, onSelect, disabled }) {
@@ -92,7 +94,7 @@ function PrinterSelector({ printers, status, plate, selectedId, onSelect, disabl
 
 export default function ProjectDetailView({ projectId, onBack, filaments = [] }) {
     const { setSelected } = useRightPanel() || {};
-    const status = usePrinterStatus() || {};
+    const { status = {} } = usePrinterStatus();
     const toast = useToast();
     const [project, setProject] = useState(null);
     const [spools, setSpools] = useState([]);
@@ -109,6 +111,36 @@ export default function ProjectDetailView({ projectId, onBack, filaments = [] })
     const [templateData, setTemplateData] = useState(null);
     const [templateMap, setTemplateMap] = useState({}); // { templateId: templateData }
     const [swapConfirm, setSwapConfirm] = useState(null); // { category_id, new_option_id, done_plates, instance_id }
+
+    const [showAddFilesModal, setShowAddFilesModal] = useState(false);
+    const [addFilesSelected, setAddFilesSelected] = useState([]);
+    const [addFilesFolderId, setAddFilesFolderId] = useState(null);
+    const [addFilesBreadcrumb, setAddFilesBreadcrumb] = useState([{ id: null, name: 'Root' }]);
+    const { files: allFiles } = useFiles();
+    const { folders: allFolders } = useFolders();
+
+    const handleAddFiles = async () => {
+        if (addFilesSelected.length === 0) return;
+        try {
+            setLoading(true);
+            const res = await fetch(`/api/projects/${projectId}/plates`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ file_ids: addFilesSelected })
+            });
+            if (!res.ok) { const err = await res.json(); throw new Error(err.error || 'Failed to add files'); }
+            setShowAddFilesModal(false);
+            setAddFilesSelected([]);
+            setAddFilesFolderId(null);
+            setAddFilesBreadcrumb([{ id: null, name: 'Root' }]);
+            await fetchData();
+            toast?.(`${addFilesSelected.length} file${addFilesSelected.length !== 1 ? 's' : ''} added`, 'success');
+        } catch (err) {
+            toast?.(err.message, 'error') || alert(err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const [collapsedInstances, setCollapsedInstances] = useState(new Set());
     const toggleCollapse = (instanceId) => {
@@ -490,6 +522,9 @@ export default function ProjectDetailView({ projectId, onBack, filaments = [] })
                     <h2 style={{ margin: 0, fontSize: '28px', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '12px' }}>
                         {project.name}
                         <button className="btn btn-sm" onClick={() => setShowEditModal(true)} style={{ padding: '4px 8px', fontSize: '12px', background: 'var(--surface2)', border: '1px solid var(--border)' }}>Edit</button>
+                        {project.status !== 'archived' && (
+                            <button className="btn btn-sm" onClick={() => setShowAddFilesModal(true)} style={{ padding: '4px 8px', fontSize: '12px', background: 'var(--surface2)', border: '1px solid var(--border)' }}>+ Add Files</button>
+                        )}
                     </h2>
                     <div style={{ display: 'flex', gap: '8px', marginTop: '4px', alignItems: 'center' }}>
                         <span className="badge badge-outline" style={{ opacity: 0.8 }}>{project.template_name || 'Individual Project'}</span>
@@ -547,6 +582,185 @@ export default function ProjectDetailView({ projectId, onBack, filaments = [] })
                     </div>
                 </div>
             )}
+
+            {showAddFilesModal && (() => {
+                const existingFilenames = new Set(project.plates.map(p => {
+                    // strip prjXX_ prefix to get original filename
+                    return p.filename.replace(/^(?:prj|tpl)\d+_/, '');
+                }));
+                const curFolders = allFolders.filter(f => f.parent_id === addFilesFolderId);
+                const curFiles = allFiles.filter(f => f.folder_id === addFilesFolderId);
+                return (
+                    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }}>
+                        <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '16px', width: '95vw', height: '92vh', boxShadow: 'var(--shadow)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+
+                            {/* Header */}
+                            <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0, background: 'var(--surface)' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                                    <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>Add files to project</h3>
+                                    {addFilesSelected.length > 0 && (
+                                        <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--primary)', background: 'color-mix(in srgb, var(--primary) 15%, transparent)', border: '1px solid color-mix(in srgb, var(--primary) 30%, transparent)', borderRadius: '4px', padding: '2px 8px', letterSpacing: '.01em' }}>
+                                            {addFilesSelected.length} selected
+                                        </span>
+                                    )}
+                                </div>
+                                <button
+                                    className="btn btn-sm"
+                                    style={{ background: 'var(--surface2)', border: '1px solid var(--border)' }}
+                                    onClick={() => { setShowAddFilesModal(false); setAddFilesSelected([]); setAddFilesFolderId(null); setAddFilesBreadcrumb([{ id: null, name: 'Root' }]); }}
+                                >
+                                    Close
+                                </button>
+                            </div>
+
+                            {/* Breadcrumb toolbar — matches FilesPage */}
+                            <div style={{ padding: '10px 24px', borderBottom: '1px solid var(--border)', background: 'var(--surface2)', flexShrink: 0 }}>
+                                <div className="breadcrumb-bar" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                    {addFilesBreadcrumb.map((crumb, idx) => {
+                                        const isActive = idx === addFilesBreadcrumb.length - 1;
+                                        return (
+                                            <span key={crumb.id ?? 'root'} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                <button
+                                                    className="btn btn-sm"
+                                                    style={{
+                                                        background: isActive ? 'color-mix(in srgb, var(--primary) 15%, transparent)' : 'var(--surface)',
+                                                        color: isActive ? 'var(--primary)' : 'var(--text)',
+                                                        border: '1px solid',
+                                                        borderColor: isActive ? 'color-mix(in srgb, var(--primary) 30%, transparent)' : 'var(--border)',
+                                                        borderRadius: '16px',
+                                                        padding: '4px 14px',
+                                                        fontWeight: isActive ? 600 : 500,
+                                                        transition: 'all 0.15s',
+                                                    }}
+                                                    onMouseEnter={e => { if (!isActive) { e.currentTarget.style.borderColor = 'var(--primary)'; e.currentTarget.style.color = 'var(--primary)'; } }}
+                                                    onMouseLeave={e => { if (!isActive) { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text)'; } }}
+                                                    onClick={() => { setAddFilesBreadcrumb(b => b.slice(0, idx + 1)); setAddFilesFolderId(crumb.id); }}
+                                                >
+                                                    {idx === 0 ? 'Root' : crumb.name}
+                                                </button>
+                                                {!isActive && <span style={{ color: 'var(--text-muted)', fontSize: '18px', padding: '0 4px', lineHeight: 1 }}>›</span>}
+                                            </span>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            {/* Content */}
+                            <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
+
+                                {/* Folders grid — matches FilesPage folder grid */}
+                                {curFolders.length > 0 && (
+                                    <div className="file-grid large" style={{ marginBottom: '24px' }}>
+                                        {curFolders.map(f => (
+                                            <div
+                                                key={f.id}
+                                                style={{ position: 'relative', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '12px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px', transition: 'transform 0.15s, border-color 0.15s, box-shadow 0.15s' }}
+                                                onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 6px 16px rgba(0,0,0,0.15)'; e.currentTarget.style.borderColor = 'var(--primary)'; }}
+                                                onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.borderColor = 'var(--border)'; }}
+                                                onClick={() => { setAddFilesFolderId(f.id); setAddFilesBreadcrumb(b => [...b, { id: f.id, name: f.name }]); }}
+                                            >
+                                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, color: 'var(--text-muted)' }}>
+                                                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                                                </svg>
+                                                <div style={{ flex: 1, minWidth: 0 }}>
+                                                    <div style={{ fontWeight: 600, fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{f.name}</div>
+                                                    <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{f.file_count === 1 ? '1 file' : `${f.file_count || 0} files`}</div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {curFolders.length > 0 && curFiles.length > 0 && (
+                                    <hr style={{ borderColor: 'var(--border)', margin: '0 0 24px' }} />
+                                )}
+
+                                {/* File table */}
+                                {curFiles.length > 0 && (
+                                    <div className="file-table-wrap">
+                                        <table className="file-table" style={{ width: '100%' }}>
+                                            <thead>
+                                                <tr>
+                                                    <th style={{ width: '32px' }}></th>
+                                                    <th>Name</th>
+                                                    <th style={{ width: '120px' }}>Est. time</th>
+                                                    <th style={{ width: '100px' }}>Material</th>
+                                                    <th style={{ width: '140px' }}>Uploaded</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {curFiles.map(f => {
+                                                    const alreadyInProject = existingFilenames.has(f.filename);
+                                                    const isChecked = addFilesSelected.includes(f.id);
+                                                    return (
+                                                        <tr
+                                                            key={f.id}
+                                                            style={{ opacity: alreadyInProject ? 0.45 : 1, cursor: alreadyInProject ? 'default' : 'pointer', background: isChecked ? 'color-mix(in srgb, var(--primary) 8%, transparent)' : undefined }}
+                                                            onClick={() => { if (!alreadyInProject) setAddFilesSelected(prev => prev.includes(f.id) ? prev.filter(id => id !== f.id) : [...prev, f.id]); }}
+                                                        >
+                                                            <td onClick={e => e.stopPropagation()} style={{ textAlign: 'center' }}>
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={isChecked}
+                                                                    disabled={alreadyInProject}
+                                                                    onChange={() => { if (!alreadyInProject) setAddFilesSelected(prev => prev.includes(f.id) ? prev.filter(id => id !== f.id) : [...prev, f.id]); }}
+                                                                />
+                                                            </td>
+                                                            <td style={{ fontWeight: 500 }}>
+                                                                {f.display_name || f.filename}
+                                                                {alreadyInProject && <span style={{ marginLeft: '8px', fontSize: '11px', color: 'var(--text-muted)', fontWeight: 400 }}>already in project</span>}
+                                                            </td>
+                                                            <td style={{ color: 'var(--text-muted)', fontSize: '13px' }}>
+                                                                {f.estimated_time_s ? `${Math.floor(f.estimated_time_s / 3600)}h ${Math.floor((f.estimated_time_s % 3600) / 60)}m` : '—'}
+                                                            </td>
+                                                            <td style={{ fontSize: '13px' }}>
+                                                                {f.filament_type ? <span className="chip chip--outline" style={{ fontSize: '11px' }}>{f.filament_type}</span> : <span style={{ color: 'var(--text-muted)' }}>—</span>}
+                                                            </td>
+                                                            <td style={{ color: 'var(--text-muted)', fontSize: '13px' }}>
+                                                                {f.created_at ? new Date(f.created_at).toLocaleDateString() : '—'}
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+
+                                {curFolders.length === 0 && curFiles.length === 0 && (
+                                    <p className="empty-state">This folder is empty.</p>
+                                )}
+                            </div>
+
+                            {/* Footer */}
+                            <div style={{ padding: '14px 24px', borderTop: '1px solid var(--border)', display: 'flex', gap: '12px', alignItems: 'center', flexShrink: 0, background: 'var(--surface)' }}>
+                                <button
+                                    className="btn btn-primary"
+                                    disabled={addFilesSelected.length === 0 || loading}
+                                    onClick={handleAddFiles}
+                                >
+                                    {loading ? 'Adding…' : addFilesSelected.length > 0 ? `Add ${addFilesSelected.length} file${addFilesSelected.length !== 1 ? 's' : ''}` : 'Add files'}
+                                </button>
+                                <button
+                                    className="btn btn-outline"
+                                    onClick={() => { setShowAddFilesModal(false); setAddFilesSelected([]); setAddFilesFolderId(null); setAddFilesBreadcrumb([{ id: null, name: 'Root' }]); }}
+                                >
+                                    Cancel
+                                </button>
+                                {addFilesSelected.length > 0 && (
+                                    <button
+                                        className="btn btn-sm"
+                                        style={{ marginLeft: 'auto', color: 'var(--text-muted)', background: 'transparent', border: 'none' }}
+                                        onClick={() => setAddFilesSelected([])}
+                                    >
+                                        Clear selection
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', alignItems: 'stretch' }}>
                 {/* Plate Checklist and Inline Filament Setup */}

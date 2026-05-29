@@ -1,8 +1,22 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { getVendors, deleteVendor, getFields } from '../api/spoolman';
 import AddVendorDialog from '../components/spoolman/AddVendorDialog';
 
 export default function ManufacturersPage() {
+    const location = useLocation();
+    const navigate = useNavigate();
+    const [highlightedVendorId, setHighlightedVendorId] = useState(null);
+    const highlightRef = useCallback((node) => {
+        if (node) node.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, [highlightedVendorId]);
+    useEffect(() => {
+        const state = location.state;
+        if (!state?.vendorId) return;
+        navigate('/spoolman/manufacturers', { replace: true, state: null });
+        setHighlightedVendorId(state.vendorId);
+        setTimeout(() => setHighlightedVendorId(null), 3000);
+    }, [location.state]);
     const [vendors, setVendors] = useState([]);
     const [extraFields, setExtraFields] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -76,8 +90,10 @@ export default function ManufacturersPage() {
                             </tr>
                         </thead>
                         <tbody>
-                            {filtered.map(v => (
-                                <tr key={v.id} className="sm-catalogue-row">
+                            {filtered.map(v => {
+                                const isHighlighted = v.id === highlightedVendorId;
+                                return (
+                                <tr key={v.id} ref={isHighlighted ? highlightRef : null} className="sm-catalogue-row" style={isHighlighted ? { background: 'color-mix(in srgb, var(--primary) 12%, transparent)', outline: '1px solid color-mix(in srgb, var(--primary) 35%, transparent)', outlineOffset: '-1px', transition: 'background 1s, outline 1s' } : undefined}>
                                     <td className="sm-catalogue-name">{v.name}</td>
                                     <td className="sm-catalogue-muted">{v.comment || '—'}</td>
                                     {extraFields.map(ef => (
@@ -90,7 +106,8 @@ export default function ManufacturersPage() {
                                         <button className="sm-action-btn sm-action-danger" onClick={() => handleDelete(v)} title="Delete">✕</button>
                                     </td>
                                 </tr>
-                            ))}
+                                );
+                            })}
                         </tbody>
                     </table>
                 </div>

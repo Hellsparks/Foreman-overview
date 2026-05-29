@@ -1,7 +1,10 @@
 // Node.js 22+ has built-in fetch and FormData globals — no imports needed.
 
-class MoonrakerClient {
+const PrinterClient = require('./PrinterClient');
+
+class MoonrakerClient extends PrinterClient {
   constructor(printer) {
+    super(printer);
     // Allow a full URL in host (e.g. OctoEverywhere shared links like https://shared-xxx.octoeverywhere.com/)
     if (/^https?:\/\//i.test(printer.host)) {
       this.baseUrl = printer.host.replace(/\/+$/, '');
@@ -9,7 +12,16 @@ class MoonrakerClient {
       this.baseUrl = `http://${printer.host}:${printer.port}`;
     }
     this.apiKey = printer.api_key;
-    this.printer = printer;
+  }
+
+  get capabilities() {
+    return {
+      hasQueue: true,
+      hasMacros: true,
+      hasAMS: false,
+      hasSpoolman: true,
+      hasWebcams: true,
+    };
   }
 
   _headers() {

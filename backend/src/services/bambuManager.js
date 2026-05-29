@@ -1,7 +1,14 @@
 /**
- * BambuLab LAN Developer Mode — MQTT connection manager.
+ * BambuLab LAN MQTT connection manager.
  *
  * Bambu printers expose an MQTT broker on port 8883 (TLS, self-signed cert).
+ * Developer mode is not required — only the serial number and LAN access code
+ * (both visible on the printer screen without any special mode enabled).
+ *
+ * Note: post-January-2025 firmware requires X.509 client certificates to
+ * publish commands to the /request topic. Until that cert derivation is
+ * implemented, command delivery may silently fail on updated printers.
+ *
  * This module maintains one persistent MQTT connection per Bambu printer.
  * Because status arrives via pub/sub rather than HTTP poll, this manager:
  *   - Receives status messages and writes them to printerCache directly
@@ -14,6 +21,7 @@
 const mqtt = require('mqtt');
 const { getDb } = require('../db');
 const printerCache = require('./printerCache');
+const { detectTerminalStatus, logJob } = require('./jobLogger');
 
 // printerId → mqtt.MqttClient
 const connections = new Map();
@@ -92,26 +100,6 @@ function buildStatus(printData) {
   };
 }
 
-// --- Job logging (mirrors poller.js terminal-state logic) ---
-
-function logTerminalJob(printer, terminalStatus, printData) {
-  try {
-    const db = getDb();
-    const filename = printData.subtask_name || printData.gcode_file || 'Unknown';
-    // Bambu gives remaining time (minutes) but not elapsed. We store 0 for duration
-    // — a future improvement could track start time.
-    db.prepare(`
-      INSERT INTO gcode_print_jobs
-      (printer_id, filename, total_duration_s, filament_used_mm,
-       spool_id, spool_name, material, color_hex, vendor, status)
-      VALUES (?, ?, ?, ?, NULL, NULL, NULL, NULL, NULL, ?)
-    `).run(printer.id, filename, 0, 0, terminalStatus);
-    console.log(`[Bambu] Logged print job (${terminalStatus}): "${filename}" on Printer ${printer.id}`);
-  } catch (err) {
-    console.error(`[Bambu] Failed to log print job for printer ${printer.id}:`, err.message);
-  }
-}
-
 // --- MQTT message handler ---
 
 function handleMessage(printer, printData) {
@@ -124,23 +112,26 @@ function handleMessage(printer, printData) {
   const currentState = status.print_stats.state;
   const prevStateObj = previousStates.get(printer.id);
 
-  // Terminal state detection (same logic as poller.js)
   if (prevStateObj) {
-    const prevState = prevStateObj.state;
-    let terminalStatus = null;
-
-    if (prevState === 'printing') {
-      if (currentState === 'complete') terminalStatus = 'complete';
-      else if (currentState === 'error') terminalStatus = 'error';
-      // Bambu can go RUNNING → IDLE without FINISH if print is cancelled via stop command
-      else if (currentState === 'standby') terminalStatus = 'complete';
-    } else if (prevState === 'paused' && currentState === 'standby') {
-      // Cancelled from a paused state (stop command while paused)
-      terminalStatus = 'cancelled';
-    }
-
+    const terminalStatus = detectTerminalStatus(prevStateObj.state, currentState, { firmware: 'bambu' });
     if (terminalStatus) {
-      logTerminalJob(printer, terminalStatus, merged);
+      const db = getDb();
+      const filename = merged.subtask_name || merged.gcode_file || 'Unknown';
+      try {
+        // Bambu doesn't expose spool data or project plates via MQTT
+        logJob(db, {
+          printerId: printer.id,
+          filename,
+          durationS: 0,
+          filamentUsedMm: 0,
+          spool: null,
+          status: terminalStatus,
+          plateId: null,
+        });
+        console.log(`[Bambu] Logged print job (${terminalStatus}): "${filename}" on Printer ${printer.id}`);
+      } catch (err) {
+        console.error(`[Bambu] Failed to log print job for printer ${printer.id}:`, err.message);
+      }
     }
   }
 
