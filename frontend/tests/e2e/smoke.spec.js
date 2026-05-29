@@ -30,14 +30,14 @@ test('dashboard: idle printer shows Idle badge', async ({ page }) => {
   await page.goto('/');
   // Printer 1 (Ender 3 Pro) is standby → "Idle"
   const card = grid(page).locator('.printer-card', { hasText: 'Ender 3 Pro' });
-  await expect(card.locator('.status-badge')).toHaveText('Idle');
+  await expect(card.locator('.chip')).toHaveText('Idle');
 });
 
 test('dashboard: printing printer shows Printing badge and progress', async ({ page }) => {
   await page.goto('/');
   // Printer 2 (X1 Carbon) is printing
   const card = grid(page).locator('.printer-card', { hasText: 'X1 Carbon' });
-  await expect(card.locator('.status-badge')).toHaveText('Printing');
+  await expect(card.locator('.chip')).toHaveText('Printing');
   await expect(card).toContainText('benchy.gcode');
 });
 
@@ -45,7 +45,7 @@ test('dashboard: offline printer shows Offline badge', async ({ page }) => {
   await page.goto('/');
   // Printer 3 (Artillery SW) is offline
   const card = grid(page).locator('.printer-card', { hasText: 'Artillery SW' });
-  await expect(card.locator('.status-badge')).toHaveText('Offline');
+  await expect(card.locator('.chip')).toHaveText('Offline');
 });
 
 test('dashboard: printing card shows Pause and Cancel buttons', async ({ page }) => {

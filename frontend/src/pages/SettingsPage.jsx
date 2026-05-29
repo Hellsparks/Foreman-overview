@@ -1254,8 +1254,7 @@ export default function SettingsPage() {
                 <div className="settings-row">
                   <input type="text" className="form-input" placeholder="smb://10.0.0.24/Backups or /mnt/nas/backups"
                     value={backupDir2} onChange={e => setBackupDir2(e.target.value)}
-                    style={{ flex: 1, minWidth: '200px', fontFamily: 'monospace', fontSize: '12px' }}
-                    placeholder="smb://192.168.1.100/Backups or /mnt/nas/backups" />
+                    style={{ flex: 1, minWidth: '200px', fontFamily: 'monospace', fontSize: '12px' }} />
                   <button className="btn btn-sm btn-primary" onClick={async () => {
                     await updateSetting('backup_dir_2', backupDir2);
                     setBackupDir2Saved(backupDir2);
